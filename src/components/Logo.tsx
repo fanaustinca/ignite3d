@@ -1,25 +1,10 @@
 export function LogoMark({ size = 28 }: { size?: number }) {
   return (
     <svg width={size} height={size} viewBox="0 0 64 64" aria-label="Ignite3D logo" role="img">
-      <defs>
-        <linearGradient id="ig-g" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stopColor="#ff8a3d" />
-          <stop offset="1" stopColor="#e5520a" />
-        </linearGradient>
-      </defs>
-      <rect x="2" y="2" width="60" height="60" rx="14" fill="url(#ig-g)" />
-      <g fill="#fff" fillOpacity="0.35">
-        <circle cx="13" cy="13" r="3.2" />
-        <circle cx="51" cy="13" r="3.2" />
-        <circle cx="13" cy="51" r="3.2" />
-        <circle cx="51" cy="51" r="3.2" />
-      </g>
       <path
-        fill="#fff"
-        d="M33.5 8c1.6 7.4-3.2 10.6-6.6 15.2-3.4 4.6-6.4 8.6-6.4 15.2C20.5 46.6 26.1 54 32 54s11.5-6.4 11.5-14.8c0-5.4-2.3-9.1-4.6-12.2.2 3.6-1 6.2-3.2 7.3 1.4-8.6-1.2-17.6-2.2-26.3z"
+        fill="#ff6a13"
+        d="M35 3c2.2 9.8-3.9 14.4-8.5 20.2C21.9 29 17 34.7 17 43.4 17 53.1 23.9 61 32 61s15-6.9 15-16.3c0-6.8-2.9-11.4-5.9-15.3.3 4.6-1.3 7.9-4.1 9.3C38.8 27.7 36.5 14.6 35 3zM32 56.5c-4.3 0-7.5-3.5-7.5-8 0-4.3 2.5-6.9 5.2-10.1.3 3.9 2.1 5.9 4.2 6.6-.6-3.1.1-6 1.6-8.4 1.9 3.3 4 6.4 4 11.4 0 4.8-3.2 8.5-7.5 8.5z"
       />
-      <circle cx="32" cy="42" r="6" fill="#e5520a" />
-      <circle cx="32" cy="42" r="2.6" fill="#fff" />
     </svg>
   );
 }
