@@ -1,0 +1,42 @@
+{
+  "name": "ignite3d",
+  "private": true,
+  "version": "1.0.0",
+  "type": "module",
+  "scripts": {
+    "dev": "vite",
+    "build": "vite-node scripts/build-catalog.ts && tsc -b && vite build",
+    "preview": "vite preview --port 4791 --strictPort",
+    "typecheck": "tsc -b",
+    "test:unit": "vitest run",
+    "test:e2e": "node tests/e2e.mjs",
+    "test": "npm run typecheck && npm run test:unit && npm run build && npm run test:e2e",
+    "catalog": "vite-node scripts/build-catalog.ts"
+  },
+  "dependencies": {
+    "@react-three/drei": "^9.117.3",
+    "@react-three/fiber": "^8.17.10",
+    "fflate": "^0.8.2",
+    "idb-keyval": "^6.2.1",
+    "lucide-react": "^0.460.0",
+    "lz-string": "^1.5.0",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "three": "^0.170.0",
+    "zundo": "^2.3.0",
+    "zustand": "^5.0.1"
+  },
+  "devDependencies": {
+    "@tailwindcss/vite": "^4.1.11",
+    "@types/react": "^18.3.12",
+    "@types/react-dom": "^18.3.1",
+    "@types/three": "^0.170.0",
+    "@vitejs/plugin-react": "^4.3.4",
+    "puppeteer-core": "^24.0.0",
+    "tailwindcss": "^4.1.11",
+    "typescript": "^5.6.3",
+    "vite": "^5.4.11",
+    "vite-node": "^2.1.5",
+    "vitest": "^2.1.5"
+  }
+}
