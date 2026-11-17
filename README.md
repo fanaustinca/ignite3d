@@ -17,12 +17,18 @@
   well-spread screws per joint). Ignite3D walks the stack of plates on that hole axis, adds up the thickness,
   picks the right M4 SHCS length, puts the head on the outside and a nyloc nut on the far face — or threads it
   straight into tapped holes (motor faces, goBILDA hubs, standoffs, blocks) with no nut.
-- **166 goBILDA parts** generated parametrically (channels, low-side, goRAIL, beams, grid plates, mounts,
-  Yellow Jacket motors, servos, REX/D shafts, hubs, bearings, gears, pulleys, Viper-Slides, mecanum / gecko /
-  traction / omni wheels, screws, nuts, standoffs, spacers).
+- **619 real goBILDA parts** converted from goBILDA's own STEP files: U-channels (incl. the real slot / oval hole
+  pattern), low-side & mini channels, goRAIL, beams, grid plates, quad blocks & mounts, clamping mounts, pillow
+  blocks, Yellow Jacket motors (5202/5203/5204), servos & ServoBlocks, REX / D shafts, hubs, collars, bearings,
+  gears, pulleys, Viper-Slide kits, mecanum / Gecko / Rhino / omni wheels, screws, nuts, washers, standoffs and
+  spacers. Real names, per-piece prices and masses (goBILDA weights, or real volume × material density).
+- **Snap points measured from the real geometry:** every M4 clearance hole, threaded hole, slot end (and every
+  1 mm along true sliding slots), 14 mm bearing bore, REX / D bore and shaft end — verified part by part with
+  renders and with OpenCascade fit checks (two real solids snapped together must not intersect).
 - **FTC overlays:** 18″ sizing cube (turns red when you are too big), live weight in g/lb, center of gravity.
-- **Onshape-ready export:** STEP AP214 assembly — one instance per part named by SKU, exact placement,
-  millimetres, Z-up, holes as true cylinders so Onshape mate connectors snap to hole centres. Also STL, GLB
+- **Onshape-ready export:** STEP AP214 assembly — one instance per part, exact placement, millimetres, Z-up —
+  containing **goBILDA's exact B-rep geometry** for each part (fetched on demand from the
+  [ignite3d-cad](https://github.com/fanaustinca/ignite3d-cad) data site), so Onshape gets the real parts. Also STL, GLB
   and a JSON manifest with every occurrence's `/occurrencetransforms` matrix.
 - **BOM** with CSV download, **share links** (`#build=…`, compressed in the URL), undo/redo, grouping,
   mirroring (mecanum L↔R swap), hide / x-ray, autosave, light & dark themes.
@@ -60,4 +66,16 @@ The e2e suite drives the real app with a mouse and keyboard (snapping, fastening
 custom upload, CDN mesh upgrade). If an OpenCascade Python (`pythonocc-core`) is available
 (`OCCT_PYTHON=/path/to/python`), the exported STEP is also validated with OpenCascade.
 
-Unofficial community tool — goBILDA is a trademark of its owner. Check critical dimensions against goBILDA's drawings.
+## Known limitations
+
+- 4 very large assemblies (the 104 mm and 140 mm mecanum wheels and two Viper-Slide kits) have no exact STEP
+  fragment (> 15 MB compressed) and export as bounding-box placeholders; they still render and snap with the real mesh.
+- goBILDA ships one handedness of each mecanum wheel; Mirror makes a mirrored *placement*, not chiral geometry.
+- Excluded (not single parts in goBILDA's STEP): bundles, the 1523 standoff assembly, the 2:1 bevel gear sets, roller packs.
+- Some joints still show small overlaps in fit checks (REX-in-REX zero-clearance fits, Gecko-on-hub, Viper-Slide
+  hardware below its mounting plane) — see `tools/gobilda/review/`.
+
+The conversion pipeline lives in `tools/gobilda/`.
+
+Unofficial community tool. Part geometry comes from the STEP files goBILDA publishes on gobilda.com;
+goBILDA® and REX® are trademarks of their owner.

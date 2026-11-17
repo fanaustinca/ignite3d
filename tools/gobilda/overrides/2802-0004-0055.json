@@ -1,0 +1,25 @@
+{
+ "notes": "screw: head=largest-r boss (r=3.80), under-head plane at shank start, axis through origin, head +Y. measured (mesh) shank underhead->tip 55.000 mm, head height 2.200 mm, head r=3.80",
+ "male": [
+  {
+   "id": "underhead",
+   "type": "m4_hole",
+   "position": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "upVector": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "male": true
+  }
+ ]
+}

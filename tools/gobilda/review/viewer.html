@@ -1,0 +1,45 @@
+<!doctype html><html><head><meta charset="utf-8"><style>body{margin:0;background:#fff;font:12px monospace}#c{display:block}#lbl{position:absolute;left:8px;top:6px;background:#fffc;padding:2px 6px}
+.v{position:absolute;font:bold 11px sans-serif;color:#555}</style>
+<script type="importmap">{"imports":{"three":"../three/build/three.module.js","three/addons/":"../three/examples/jsm/"}}</script></head>
+<body><canvas id="c" width="1400" height="1000"></canvas><div id="lbl"></div>
+<div class="v" style="left:8px;top:490px">ISO</div><div class="v" style="left:708px;top:490px">FRONT (look -Z)</div><div class="v" style="left:8px;top:990px">TOP (look -Y)</div><div class="v" style="left:708px;top:990px">RIGHT (look -X)</div>
+<script type="module">
+import * as THREE from 'three';
+import { GLTFLoader } from 'three/addons/loaders/GLTFLoader.js';
+const q = new URLSearchParams(location.search); const sku = q.get('sku');
+const meta = await (await fetch(`../out/${sku}.json`)).json();
+let ov = null; try { const r = await fetch(`../overrides/${sku}.json`); if (r.ok) ov = await r.json(); } catch {}
+const gltf = await new GLTFLoader().loadAsync(`../out/${sku}.glb`);
+const renderer = new THREE.WebGLRenderer({ canvas: document.getElementById('c'), antialias: true, preserveDrawingBuffer: true });
+renderer.setScissorTest(true);
+const scene = new THREE.Scene(); scene.background = new THREE.Color('#f4f5f7');
+scene.add(new THREE.HemisphereLight('#fff', '#888', 2.2)); const dl = new THREE.DirectionalLight('#fff', 1.6); dl.position.set(3, 5, 4); scene.add(dl);
+gltf.scene.traverse((o) => { if (o.isMesh) o.material = new THREE.MeshStandardMaterial({ color: '#b9bec6', metalness: 0.2, roughness: 0.6, transparent: true, opacity: 0.82, side: THREE.DoubleSide }); });
+scene.add(gltf.scene);
+const COL = { m4_hole: '#ff6a13', hub_pattern_16mm: '#e0a000', bearing_14mm: '#0aa6d6', rex_8mm: '#8b5cf6', d_6mm: '#10b981' };
+const ring = (p, n, color, r, filled) => {
+  const g = filled ? new THREE.CircleGeometry(r, 20) : new THREE.RingGeometry(r * 0.72, r, 24);
+  const m = new THREE.Mesh(g, new THREE.MeshBasicMaterial({ color, side: THREE.DoubleSide, depthTest: false, transparent: true, opacity: 0.95 }));
+  m.position.set(...p).addScaledVector(new THREE.Vector3(...n), 0.05); m.quaternion.setFromUnitVectors(new THREE.Vector3(0, 0, 1), new THREE.Vector3(...n)); m.renderOrder = 5; scene.add(m);
+};
+const snaps = [...meta.snaps.filter((s) => !(ov?.removeSnapIds ?? []).includes(s.id)), ...(ov?.addSnaps ?? [])];
+for (const s of snaps) ring(s.p, s.n, COL[s.type] ?? '#f0f', s.type === 'bearing_14mm' ? 4.5 : 2.2, s.tapped);
+for (const m of ov?.male ?? []) { const a = new THREE.ArrowHelper(new THREE.Vector3(...m.normal ?? m.n), new THREE.Vector3(...m.position ?? m.p), 14, '#d00', 4, 3); a.renderOrder = 6; scene.add(a); }
+scene.add(new THREE.AxesHelper(20));
+const box = new THREE.Box3().setFromObject(gltf.scene); const c = box.getCenter(new THREE.Vector3()); const R = box.getSize(new THREE.Vector3()).length() * 0.62 + 5;
+scene.add(new THREE.Box3Helper(box, '#999'));
+const one = q.get('view'); // single zoomed view: top|bottom|front|back|left|right
+const DIRS = { top: [0, 1, 0.0001], bottom: [0, -1, 0.0001], front: [0, 0, 1], back: [0, 0, -1], right: [1, 0, 0], left: [-1, 0, 0] };
+const views = one ? [[new THREE.Vector3(...DIRS[one]), 0, 0, 1400, 1000]] : [[new THREE.Vector3(1, 0.8, 1.2), 0, 500], [new THREE.Vector3(0, 0, 1), 700, 500], [new THREE.Vector3(0, 1, 0.0001), 0, 0], [new THREE.Vector3(1, 0, 0), 700, 0]];
+if (one) document.querySelectorAll('.v').forEach((e) => e.remove());
+const zoom = Number(q.get('zoom') || 1);
+for (const [dir, x, y, w = 700, h = 500] of views) {
+  const k = (one ? 0.75 : 1) / zoom;
+  const cam = new THREE.OrthographicCamera(-R * 1.4 * k, R * 1.4 * k, R * k, -R * k, -5000, 5000);
+  cam.position.copy(c).addScaledVector(dir.normalize(), 1000); cam.lookAt(c); cam.updateMatrixWorld();
+  renderer.setViewport(x, y, w, h); renderer.setScissor(x, y, w, h); renderer.render(scene, cam);
+}
+const counts = {}; snaps.forEach((s) => (counts[s.type] = (counts[s.type] ?? 0) + 1));
+document.getElementById('lbl').textContent = `${sku}  bbox ${box.getSize(new THREE.Vector3()).toArray().map((v) => v.toFixed(1)).join('×')} mm  snaps ${JSON.stringify(counts)} male ${ov?.male?.length ?? 0}  (filled = tapped, red arrow = male)`;
+window.done = true;
+</script></body></html>

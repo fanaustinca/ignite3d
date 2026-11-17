@@ -1,0 +1,49 @@
+{
+ "notes": "axis Y, centred (mesh y -24.000..24.000, length 48.000, max r 2.975).",
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h3b"
+ ],
+ "addSnaps": [
+  {
+   "id": "n0a",
+   "type": "m4_hole",
+   "p": [
+    0,
+    -24.0,
+    0
+   ],
+   "n": [
+    0,
+    -1,
+    0
+   ],
+   "depth": 48.0,
+   "tapped": true,
+   "holeId": "n0"
+  },
+  {
+   "id": "n0b",
+   "type": "m4_hole",
+   "p": [
+    0,
+    24.0,
+    0
+   ],
+   "n": [
+    0,
+    1,
+    0
+   ],
+   "depth": 48.0,
+   "tapped": true,
+   "holeId": "n0"
+  }
+ ]
+}

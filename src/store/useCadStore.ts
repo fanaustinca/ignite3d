@@ -6,7 +6,7 @@ import { BUILTIN_CATALOG, LOCKNUT_SKU, shcsSku } from '../data/catalog';
 import { type AssetSource } from '../services/assetLoader';
 import { type AssetConfig, loadAssetConfig } from '../config/assets';
 import { q4, rotateAbout, toVec3, v3, worldSnaps, type WorldSnap } from '../lib/snap';
-import { axisKey, planFasten, spreadPick, type FastenPlan } from '../lib/fasten';
+import { axisKey, planFasten, spreadPick, type FastenOptions, type FastenPlan } from '../lib/fasten';
 
 export type Theme = 'dark' | 'light';
 export type Tool = 'select' | 'fasten';
@@ -56,6 +56,7 @@ interface CadState {
   lastSnapInfo: string | null;
 
   setCatalog: (parts: CatalogPart[]) => void;
+  updatePart: (sku: string, patch: Partial<CatalogPart>) => void;
   setAssetStatus: (sku: string, s: AssetSource) => void;
   bumpVisuals: () => void;
   setAssetConfig: (c: AssetConfig) => void;
@@ -87,8 +88,13 @@ interface CadState {
 
 const idxCatalog = (parts: CatalogPart[]) => Object.fromEntries(parts.map((p) => [p.sku, p]));
 
+/** The nyloc nut used by Smart Fasten: real goBILDA 2812 when present, else the procedural one. */
+export function lockNutSku(catalog: Record<string, CatalogPart>) {
+  return ['2812-0004-0007', '2810-0004-0001', LOCKNUT_SKU].find((s) => catalog[s]) ?? LOCKNUT_SKU;
+}
+
 function screwOrNut(sku: string) {
-  return sku.startsWith('2800-') || sku.startsWith('2802-') || sku === LOCKNUT_SKU;
+  return sku.startsWith('2800-') || sku.startsWith('2802-') || sku.startsWith('2812-') || sku.startsWith('2811-') || sku === LOCKNUT_SKU || sku === '2810-0004-0001';
 }
 
 export const useCadStore = create<CadState>()(
@@ -126,7 +132,13 @@ export const useCadStore = create<CadState>()(
       toasts: [],
       lastSnapInfo: null,
 
-      setCatalog: (parts) => set({ catalog: idxCatalog(parts), catalogOrder: parts.map((p) => p.sku) }),
+      setCatalog: (parts) =>
+        set((st) => ({
+          // keep snap points that were already lazy-loaded
+          catalog: idxCatalog(parts.map((p) => (p.remoteSnaps && !p.snapPoints.length && st.catalog[p.sku]?.snapPoints.length ? { ...p, snapPoints: st.catalog[p.sku].snapPoints } : p))),
+          catalogOrder: parts.map((p) => p.sku),
+        })),
+      updatePart: (sku, patch) => set((st) => (st.catalog[sku] ? { catalog: { ...st.catalog, [sku]: { ...st.catalog[sku], ...patch } } } : {})),
       setAssetStatus: (sku, s) => set((st) => ({ assetStatus: { ...st.assetStatus, [sku]: s } })),
       bumpVisuals: () => set((st) => ({ visualVersion: st.visualVersion + 1 })),
       setAssetConfig: (c) => set({ assetConfig: c }),
@@ -263,7 +275,7 @@ export const useCadStore = create<CadState>()(
         const clicked = worldSnaps(inst, part).find((s) => s.snap.id === snapId);
         if (!clicked) return null;
         const all = allWorldSnaps(st.instances, st.catalog, clicked.pos, 80);
-        const plan = planFasten(clicked, all);
+        const plan = planFasten(clicked, all, fastenOptions(st.catalog));
         if (!plan.ok) {
           st.toast(plan.reason, 'warn');
           return null;
@@ -356,7 +368,7 @@ function instancesForPlan(plan: FastenPlan, catalog: Record<string, CatalogPart>
   if (plan.nut)
     out.push({
       instanceId: uid(),
-      sku: LOCKNUT_SKU,
+      sku: lockNutSku(catalog),
       position: plan.nut.position,
       quaternion: plan.nut.quaternion,
       hidden: false,
@@ -391,6 +403,7 @@ export function planJointFasteners(instances: PlacedInstance[], catalog: Record<
   }
   const focusIds = new Set(focusList.map((i) => i.instanceId));
   const existing = existingScrewAxes(instances, catalog);
+  const fopts = fastenOptions(catalog);
   const byJoint = new Map<string, FastenPlan[]>();
   const existingInJoint = new Map<string, Vector3[]>();
   const seenAxes = new Set<string>();
@@ -398,7 +411,7 @@ export function planJointFasteners(instances: PlacedInstance[], catalog: Record<
     if (!fastenable(s) || !focusIds.has(s.instanceId)) continue;
     const mates = (hash.get(hk(s.pos)) ?? []).filter((o) => o.instanceId !== s.instanceId && o.normal.dot(s.normal) < -0.999 && o.pos.distanceTo(s.pos) < 0.3);
     if (!mates.length) continue;
-    const plan = planFasten(s, allSnaps);
+    const plan = planFasten(s, allSnaps, fopts);
     if (!plan.ok) continue;
     const key = axisKey(plan.head, plan.dir);
     if (seenAxes.has(key)) continue;
@@ -422,4 +435,15 @@ export function planJointFasteners(instances: PlacedInstance[], catalog: Record<
   }
   const reason = added.length ? undefined : existing.size ? 'Every joint already has its screws.' : 'No aligned M4 holes between touching parts.';
   return { added, joints: [...byJoint.keys()].filter((k) => (existingInJoint.get(k)?.length ?? 0) < perJoint).length, reason };
+}
+
+/** Screw lengths and nut height available in the current catalogue (real goBILDA when loaded). */
+export function fastenOptions(catalog: Record<string, CatalogPart>): FastenOptions {
+  const lengths = Object.keys(catalog)
+    .filter((k) => /^2800-0004-\d{4}$/.test(k))
+    .map((k) => Number(k.slice(-4)))
+    .filter((L) => L >= 6)
+    .sort((a, b) => a - b);
+  const nut = catalog[lockNutSku(catalog)];
+  return { lengths: lengths.length ? lengths : undefined, nutHeight: nut?.dimensions ? nut.dimensions[1] : undefined };
 }

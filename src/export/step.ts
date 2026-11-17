@@ -10,8 +10,19 @@ import { Matrix4, Quaternion, Vector3 } from 'three';
 import type { CatalogPart, Extrusion, PlacedInstance, Pt2, Vec3 } from '../types/cad';
 import { frameNormal, holePts, mapPoint, norm3, outlinePts, signedArea, cross3, sub3 } from '../geometry/recipe';
 
+/** Real goBILDA B-rep, already in the part frame, as a renumberable STEP DATA section. */
+export interface StepFragment {
+  maxId: number;
+  pd: number; // PRODUCT_DEFINITION
+  rep: number; // shape representation holding the solids
+  origin: number; // AXIS2_PLACEMENT_3D item of that representation
+  data: string; // '#1=...;#2=...;' entities
+}
+
 export interface StepOptions {
   name?: string;
+  /** Exact manufacturer geometry per SKU (preferred over the procedural model). */
+  fragments?: Record<string, StepFragment | undefined>;
   /** Triangle positions for parts without a procedural recipe (custom uploads). */
   meshFor?: (sku: string) => Float32Array | number[] | null;
   /** Convert Y-up to Z-up (default true). */
@@ -233,16 +244,39 @@ export function exportStep(instances: PlacedInstance[], catalog: Record<string, 
   for (const sku of [...new Set(visible.map((i) => i.sku))]) {
     const cp = catalog[sku];
     if (!cp) continue;
+    const frag = opts.fragments?.[sku];
+    if (frag) {
+      // splice the manufacturer's B-rep with entity ids shifted past ours
+      const off = w.n;
+      w.lines.push(frag.data.replace(/#(\d+)/g, (_, d) => `#${Number(d) + off}`));
+      w.n += frag.maxId;
+      parts.set(sku, { pd: `#${frag.pd + off}`, rep: `#${frag.rep + off}`, origin: `#${frag.origin + off}` });
+      continue;
+    }
     const pr = product(`${cp.sku} ${cp.name}`, cp.sku, 'part');
     const origin = w.ax2([0, 0, 0], [0, 0, 1], [1, 0, 0]);
     let rep: string;
     if (cp.procedural) {
       const solids = cp.procedural.solids.filter((s) => !s.decal).map((s) => writeExtrusion(w, s));
       rep = w.add(`ADVANCED_BREP_SHAPE_REPRESENTATION('${esc(cp.sku)}',(${[origin, ...solids].join(',')}),${ctx})`);
-    } else {
+    } else if (cp.isCustom) {
+      // user-uploaded mesh: no other geometry exists, export it faceted
       const tris = opts.meshFor?.(sku);
       const items = tris && tris.length ? [writeMesh(w, tris)] : [];
       rep = w.add(`MANIFOLD_SURFACE_SHAPE_REPRESENTATION('${esc(cp.sku)}',(${[origin, ...items].join(',')}),${ctx})`);
+    } else {
+      // exact geometry unavailable (offline / not in the CAD repo): a bounding-box stand-in at the right place
+      const [lo, hi] = cp.bounds ?? [
+        (cp.dimensions ?? [10, 10, 10]).map((d) => -d / 2) as Vec3,
+        (cp.dimensions ?? [10, 10, 10]).map((d) => d / 2) as Vec3,
+      ];
+      const box: Extrusion = {
+        outline: { kind: 'poly', pts: [[lo[0], -hi[2]], [hi[0], -hi[2]], [hi[0], -lo[2]], [lo[0], -lo[2]]] },
+        frame: { o: [0, lo[1], 0], u: [1, 0, 0], v: [0, 0, -1] },
+        depth: Math.max(0.01, hi[1] - lo[1]),
+        color: '#888',
+      };
+      rep = w.add(`ADVANCED_BREP_SHAPE_REPRESENTATION('${esc(cp.sku)} (bounding box)',(${[origin, writeExtrusion(w, box)].join(',')}),${ctx})`);
     }
     w.add(`SHAPE_DEFINITION_REPRESENTATION(${pr.pds},${rep})`);
     parts.set(sku, { pd: pr.pd, rep, origin });

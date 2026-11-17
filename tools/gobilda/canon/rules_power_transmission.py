@@ -1,0 +1,90 @@
+"""power_transmission: shafts, hubs, bearings, collars, gears, pulleys, universal joint.
+
+Frames (all axis = Y, axis through origin in XZ):
+  shafts      : centred in Y; male endA (low end, n=+Y) / endB (high end, n=-Y).
+  hubs/gears/pulleys/collars/bearings(non-flanged): bore axis -> Y, bbox centred in Y.
+  flanged bearing 1611: flange underside at y=0, 14 mm barrel toward -Y, male bearing_14mm n=(0,-1,0).
+Typing of hole snaps (hub_pattern_16mm for hub threads, bore retypes) is done in pt_overrides.py -> overrides/*.json.
+"""
+import numpy as np
+from . import lib
+from .lib import unit, frame, snap_axis, male
+
+PREFIXES = ['2101-', '2102-', '2106-', '2109-', '1309-', '1310-', '2910-', '1600-', '1611-', '4005-',
+            '2302-', '2303-', '2304-', '2312-', '2315-', '2317-', '2319-', '2320-', '2322-', '3204-',
+            '3411-', '3415-', '3417-', '3418-', '3424-']
+SHAFT = ('2101-', '2102-', '2106-', '2109-')
+BORE_R = lambda r: 1.57 <= r <= 1.6 or 2.95 <= r <= 3.3 or 3.9 <= r <= 4.95 or 6.8 <= r <= 7.25
+
+import os, sys
+_D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+
+def tight_bbox(sku):
+    """ctx['bbox'] is OCC's loose bbox (can be ~0.3 mm too big); measure the real mesh instead (Y-up coords)."""
+    if _D not in sys.path: sys.path.insert(0, _D)
+    from extract import load, tessellate
+    P, _ = tessellate(load(os.path.join(_D, 'step', f'{sku}.STEP')))
+    return [P.min(0).astype(float).tolist(), P.max(0).astype(float).tolist()]
+
+def _rot(axis, bbox):
+    R = snap_axis(frame(axis))
+    lo, hi = np.array(bbox[0]), np.array(bbox[1])
+    corners = np.array([[x, y, z] for x in (lo[0], hi[0]) for y in (lo[1], hi[1]) for z in (lo[2], hi[2])]) @ R.T
+    return R, corners
+
+def bore_axis(ctx):
+    """Axis of the main bore: classified bore cylinders, longest total length; else the thinnest bbox axis."""
+    tot = {}
+    for h in ctx['holes']:
+        if BORE_R(h['r']) and (h['full'] or h.get('arc', 0) >= 1.0):
+            k = tuple(np.round(h['dir'], 4)); tot[k] = tot.get(k, 0) + h['len']
+    if tot:
+        return np.array(max(tot, key=tot.get))
+    lo, hi = np.array(ctx['bbox'][0]), np.array(ctx['bbox'][1])
+    return np.eye(3)[int(np.argmin(hi - lo))]
+
+def bore_center(ctx, axis):
+    a = unit(axis); pts = []
+    for h in ctx['holes']:
+        if BORE_R(h['r']) and abs(abs(np.dot(unit(h['dir']), a)) - 1) < 1e-4 and (h['full'] or h.get('arc', 0) >= 1.0):
+            pts.append(np.array(h['c0']))
+    return np.mean(pts, axis=0) if pts else (np.array(ctx['bbox'][0]) + np.array(ctx['bbox'][1])) / 2
+
+def rule(ctx):
+    sku = ctx['sku']
+    ctx = dict(ctx, bbox=tight_bbox(sku))
+    if sku.startswith(SHAFT):
+        lo, hi = np.array(ctx['bbox'][0]), np.array(ctx['bbox'][1])
+        ax = np.eye(3)[int(np.argmax(hi - lo))]
+        R, c = _rot(ax, ctx['bbox'])
+        mn, mx = c.min(0), c.max(0)
+        ax_pts = [np.array(b['c0']) for b in lib.bosses_along(ctx, ax, 2.9, 5.0)] + [np.array(h['c0']) for h in ctx['holes'] if abs(abs(np.dot(unit(h['dir']), ax)) - 1) < 1e-4 and 1.6 <= h['r'] <= 2.1]
+        ctr = R @ np.mean(ax_pts, axis=0) if ax_pts else (mn + mx) / 2
+        t = -np.array([ctr[0], (mn[1] + mx[1]) / 2, ctr[2]])
+        L = mx[1] - mn[1]
+        typ = 'rex_8mm' if sku.startswith('2106-') else 'd_6mm' if sku.startswith('2101-') else None
+        mm = []
+        if typ:
+            mm = [male('endA', typ, (0, -L / 2, 0), (0, 1, 0)), male('endB', typ, (0, L / 2, 0), (0, -1, 0))]
+        return {'R': R.tolist(), 't': t.tolist(), 'male': mm,
+                'notes': f'shaft L={L:.2f}; male {typ or "none (12 mm REX has no Ignite3D type)"} at both ends'}
+    axis = bore_axis(ctx)
+    R, c = _rot(axis, ctx['bbox'])
+    ctr = R @ bore_center(ctx, axis)
+    mn, mx = c.min(0), c.max(0)
+    t = -np.array([ctr[0], (mn[1] + mx[1]) / 2, ctr[2]])
+    if sku.startswith('1611-'):
+        # flange = widest boss; barrel toward -Y; underside plane at y=0
+        bs = [(b['r'], b) for b in ctx['bosses'] if abs(abs(np.dot(unit(b['dir']), unit(axis))) - 1) < 1e-4]
+        flange = max(bs, key=lambda x: x[0])[1] if bs else None
+        ys = [(R @ np.array(flange[k]))[1] for k in ('c0', 'c1')] if flange else [mn[1], mx[1]]
+        mid = (mn[1] + mx[1]) / 2
+        if (min(ys) + max(ys)) / 2 < mid:  # flange at low end -> flip so flange is at +Y
+            F = np.diag([1, -1, -1.0]); R = F @ R; c = c @ F.T; ctr = R @ bore_center(ctx, axis)
+            mn, mx = c.min(0), c.max(0)
+            ys = [(R @ np.array(flange[k]))[1] for k in ('c0', 'c1')]
+        under = min(ys)
+        t = -np.array([ctr[0], under, ctr[2]])
+        return {'R': R.tolist(), 't': t.tolist(), 'male': [male('barrel', 'bearing_14mm', (0, 0, 0), (0, -1, 0))],
+                'notes': 'flange underside y=0, barrel toward -Y'}
+    return {'R': R.tolist(), 't': t.tolist(), 'male': [], 'notes': f'bore axis -> Y, centred in Y'}

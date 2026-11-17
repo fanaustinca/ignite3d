@@ -1,18 +1,25 @@
-// "Strafer-style" example drivetrain built only with the real snap + fasten logic,
-// so loading it is also an end-to-end check that holes line up.
+// "Strafer-style" example drivetrain built only with the real snap + fasten logic, so loading it is
+// also an end-to-end check that holes line up. Works with the real goBILDA catalogue (snap ids come from
+// the STEP files, so everything is chosen by geometry) and with the procedural fallback catalogue.
 import { Quaternion, Vector3 } from 'three';
-import type { CatalogPart, PlacedInstance } from '../types/cad';
-import { mateTransform, toQuat, toVec3, worldSnaps, type WorldSnap, anyPerp } from './snap';
+import type { CatalogPart, PlacedInstance, SnapPoint } from '../types/cad';
+import { anyPerp, compatible, mateTransform, toQuat, toVec3, worldSnaps, type WorldSnap } from './snap';
 import { planJointFasteners, uid } from '../store/useCadStore';
 
-const RAIL = '1120-0013-0336';
-const CROSS = '1120-0015-0384';
-const MOTOR = '5203-2402-0019';
-const HUB = '1309-0016-0008';
-const WHEEL_L = '3625-0001-0096';
-const WHEEL_R = '3625-0002-0096';
-
 type Cat = Record<string, CatalogPart>;
+const pick = (cat: Cat, ...skus: string[]) => skus.find((s) => cat[s]) ?? skus[0];
+
+export function exampleSkus(cat: Cat) {
+  return {
+    RAIL: '1120-0013-0336',
+    CROSS: '1120-0015-0384',
+    MOTOR: '5203-2402-0019',
+    HUB: pick(cat, '1309-0016-4008', '1309-0016-0008'),
+    WHEEL_L: pick(cat, '3614-0014-0096', '3601-0014-0096', '3625-0001-0096'),
+    WHEEL_R: pick(cat, '3614-0014-0096', '3601-0014-0096', '3625-0002-0096'),
+  };
+}
+
 const mk = (sku: string, p: Vector3, q: Quaternion, extra: Partial<PlacedInstance> = {}): PlacedInstance => ({
   instanceId: uid(),
   sku,
@@ -23,85 +30,113 @@ const mk = (sku: string, p: Vector3, q: Quaternion, extra: Partial<PlacedInstanc
   ...extra,
 });
 
-/** Try every (ghost snap × 90° rotation) and keep the placement that lines up the most holes. */
-function bestMate(cat: Cat, sku: string, ghostFilter: (s: WorldSnap['snap']) => boolean, target: { pos: Vector3; normal: Vector3; up: Vector3 }, against: PlacedInstance[], score?: (cand: PlacedInstance) => number) {
+const key = (p: Vector3) => `${Math.round(p.x * 20)},${Math.round(p.y * 20)},${Math.round(p.z * 20)}`;
+
+/** Count ghost hole faces that land exactly on (opposed) hole faces of the target parts. */
+function coincident(cand: PlacedInstance, part: CatalogPart, against: WorldSnap[]) {
+  const set = new Map<string, WorldSnap[]>();
+  for (const t of against) (set.get(key(t.pos)) ?? set.set(key(t.pos), []).get(key(t.pos))!).push(t);
+  let n = 0;
+  for (const s of worldSnaps(cand, part)) if ((set.get(key(s.pos)) ?? []).some((t) => t.normal.dot(s.normal) < -0.999)) n++;
+  return n;
+}
+
+/** Try every (ghost snap × target snap × quarter turn) and keep the highest-scoring placement. */
+function bestMate(cat: Cat, sku: string, ghostFilter: (s: SnapPoint) => boolean, targets: WorldSnap[], against: WorldSnap[], score: (c: PlacedInstance) => number = () => 0) {
   const part = cat[sku];
-  const targetSnaps = against.flatMap((a) => worldSnaps(a, cat[a.sku]));
   let best: PlacedInstance | null = null;
   let bestScore = -Infinity;
-  for (const g of part.snapPoints.filter(ghostFilter))
-    for (let k = 0; k < 4; k++) {
-      const m = mateTransform(g, target, (k * Math.PI) / 2);
-      const cand = mk(sku, m.position, m.quaternion, { snapAxis: toVec3(target.normal), snapPivot: toVec3(target.pos) });
-      const mine = worldSnaps(cand, part);
-      let sc = 0;
-      for (const s of mine) if (targetSnaps.some((t) => t.pos.distanceTo(s.pos) < 1e-4 && t.normal.dot(s.normal) < -0.999)) sc++;
-      if (score) sc += score(cand);
-      if (sc > bestScore) {
-        bestScore = sc;
-        best = cand;
+  for (const t of targets)
+    for (const g of part.snapPoints.filter((s) => ghostFilter(s) && compatible(s, t.snap)))
+      for (let k = 0; k < 4; k++) {
+        const m = mateTransform(g, t, (k * Math.PI) / 2);
+        const cand = mk(sku, m.position, m.quaternion, { snapAxis: toVec3(t.normal), snapPivot: toVec3(t.pos) });
+        const sc = coincident(cand, part, against) + score(cand);
+        if (sc > bestScore) {
+          bestScore = sc;
+          best = cand;
+        }
       }
-    }
-  return best!;
+  return best;
 }
 
 export function buildExampleRobot(cat: Cat): PlacedInstance[] {
+  const S = exampleSkus(cat);
+  for (const s of [S.RAIL, S.CROSS, S.MOTOR, S.HUB]) if (!cat[s]?.snapPoints.length) throw new Error(`example needs ${s} with snap points`);
   const out: PlacedInstance[] = [];
   const rx = (deg: number) => new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), (deg * Math.PI) / 180);
-  // side rails: web faces outward, flanges horizontal, bores at axle height (48 mm)
-  const R1 = mk(RAIL, new Vector3(0, 48, -144), rx(90));
-  const R2 = mk(RAIL, new Vector3(0, 48, 144), rx(-90));
-  out.push(R1, R2);
+  const near = (a: Vector3, b: Vector3, tol = 1e-3) => a.distanceTo(b) < tol;
 
-  // cross members sitting on the rails' top flanges, bore-on-bore
+  // side rails: web faces outward (±Z), flanges horizontal, bores at axle height (48 mm)
+  const R1 = mk(S.RAIL, new Vector3(0, 48, -144), rx(90));
+  const R2 = mk(S.RAIL, new Vector3(0, 48, 144), rx(-90));
+  out.push(R1, R2);
+  const r1 = worldSnaps(R1, cat[S.RAIL]);
+  const r2 = worldSnaps(R2, cat[S.RAIL]);
+
+  // cross members on the rails' top flanges, bore on bore, spanning to the far rail
   for (const x of [-120, 120]) {
-    const t = worldSnaps(R1, cat[RAIL]).find((s) => s.snap.type === 'bearing_14mm' && s.normal.y > 0.99 && Math.abs(s.pos.x - x) < 1e-6)!;
-    const r2 = worldSnaps(R2, cat[RAIL]);
-    const cross = bestMate(cat, CROSS, (s) => s.type === 'bearing_14mm' && s.normal[1] === -1 && Math.abs(s.position[0] + 144) < 1e-6, t, [R1, R2], (cand) =>
-      // must span across to the far rail's top flange, bore on bore
-      worldSnaps(cand, cat[CROSS]).some((s) => s.snap.type === 'bearing_14mm' && r2.some((q) => q.snap.type === 'bearing_14mm' && q.pos.distanceTo(s.pos) < 1e-4)) ? 1000 : 0,
-    );
-    out.push(cross);
+    const t = r1.filter((s) => s.snap.type === 'bearing_14mm' && s.normal.y > 0.99 && Math.abs(s.pos.x - x) < 1e-3 && s.pos.y > 70);
+    const reachesR2 = (c: PlacedInstance) =>
+      worldSnaps(c, cat[S.CROSS]).some((s) => s.snap.type === 'bearing_14mm' && r2.some((q) => q.snap.type === 'bearing_14mm' && near(q.pos, s.pos))) ? 1000 : 0;
+    const cross = bestMate(cat, S.CROSS, (s) => s.type === 'bearing_14mm' && s.normal[1] < -0.99, t, [...r1, ...r2], reachesR2);
+    if (cross) out.push(cross);
   }
 
-  // motors inside the rails, shafts out through the 14mm bores
-  const wheels: [PlacedInstance, number, number][] = [];
-  for (const R of [R1, R2]) {
-    const rp = cat[RAIL];
-    const inward = R === R1 ? 1 : -1;
+  // motors inside the rails, face on the web's inner face, shaft out through the 14 mm bore
+  const wheelSpots: { hubTarget: { pos: Vector3; normal: Vector3; up: Vector3 }; axis: Vector3; side: number; x: number }[] = [];
+  for (const [R, rs, side] of [[R1, r1, -1], [R2, r2, 1]] as const) {
     for (const x of [-144, 144]) {
-      const bore = worldSnaps(R, rp).find((s) => s.snap.type === 'bearing_14mm' && s.normal.z * inward > 0.99 && Math.abs(s.pos.x - x) < 1e-6)!;
-      const hole = worldSnaps(R, rp).find(
-        (s) => s.snap.type === 'm4_hole' && s.normal.z * inward > 0.99 && Math.abs(s.pos.x - (x - 8)) < 1e-6 && Math.abs(s.pos.y - 40) < 1e-6,
-      )!;
-      const motor = bestMate(cat, MOTOR, (s) => s.id.startsWith('face'), hole, [R], (cand) => {
-        const sh = worldSnaps(cand, cat[MOTOR]).find((s) => s.snap.id === 'shaft')!;
-        return sh.pos.distanceTo(bore.pos) < 1e-4 ? 10 : 0;
-      });
+      const inward = new Vector3(0, 0, -side);
+      const bore = rs.find((s) => s.snap.type === 'bearing_14mm' && s.normal.dot(inward) > 0.99 && Math.abs(s.pos.x - x) < 1e-3 && Math.abs(s.pos.y - 48) < 1e-3);
+      if (!bore) continue;
+      const targets = rs.filter((s) => s.snap.type === 'm4_hole' && s.normal.dot(inward) > 0.99 && s.pos.distanceTo(bore.pos) < 13);
+      const shaftThroughBore = (c: PlacedInstance) => {
+        const sh = worldSnaps(c, cat[S.MOTOR]).find((s) => s.snap.male && (s.snap.type === 'rex_8mm' || s.snap.type === 'd_6mm'));
+        return sh && sh.pos.distanceTo(bore.pos) < 1e-3 && sh.normal.dot(inward) < -0.99 ? 1000 : 0;
+      };
+      const motor = bestMate(cat, S.MOTOR, (s) => !s.male && s.type === 'm4_hole' && Math.abs(s.position[1]) < 0.05 && s.normal[1] > 0.99, targets, rs, shaftThroughBore);
+      if (!motor) continue;
       out.push(motor);
-      const shaft = worldSnaps(motor, cat[MOTOR]).find((s) => s.snap.id === 'shaft')!;
-      const d = shaft.normal.clone();
-      // hub: boss toward the rail, 0.5 mm clearance from the web's outer face
-      const virt = { pos: shaft.pos.clone().addScaledVector(d, 2.5 + 0.5), normal: d.clone(), up: anyPerp(d) };
-      const hubSnap = cat[HUB].snapPoints.find((s) => s.id === 'boreb')!;
-      const hm = mateTransform(hubSnap, virt, 0);
-      const hub = mk(HUB, hm.position, hm.quaternion, { snapAxis: toVec3(d), snapPivot: toVec3(virt.pos) });
-      out.push(hub);
-      wheels.push([hub, x, R === R1 ? -1 : 1]);
+      void R;
+      const shaft = worldSnaps(motor, cat[S.MOTOR]).find((s) => s.snap.male && (s.snap.type === 'rex_8mm' || s.snap.type === 'd_6mm'))!;
+      const d = shaft.normal.clone(); // points outward, along the shaft
+      const webT = 2.5;
+      wheelSpots.push({ hubTarget: { pos: shaft.pos.clone().addScaledVector(d, webT + 0.5), normal: d.clone(), up: anyPerp(d) }, axis: d, side, x });
     }
   }
 
-  // mecanum wheels bolted to the hub patterns (X pattern when viewed from above)
-  for (const [hub, x, side] of wheels) {
-    const sku = x * side > 0 ? WHEEL_L : WHEEL_R;
-    const hubFaces = worldSnaps(hub, cat[HUB]).filter((s) => s.snap.type === 'hub_pattern_16mm');
-    const outward = new Vector3(0, 0, side);
-    const t = hubFaces.find((s) => s.normal.dot(outward) > 0.99)!;
-    const wheel = bestMate(cat, sku, (s) => s.type === 'm4_hole' && s.normal[0] === -1, t, [hub]);
-    out.push(wheel);
+  // hubs on the shafts (threaded pattern face outward), wheels bolted to the hub pattern
+  for (const w of wheelSpots) {
+    const hub = cat[S.HUB];
+    let bestHub: PlacedInstance | null = null;
+    let bestOut = -Infinity;
+    for (const g of hub.snapPoints.filter((s) => !s.male && s.type === cat[S.MOTOR].snapPoints.find((m) => m.male)?.type)) {
+      const m = mateTransform(g, w.hubTarget, 0);
+      const cand = mk(S.HUB, m.position, m.quaternion, { snapAxis: toVec3(w.axis), snapPivot: toVec3(w.hubTarget.pos) });
+      // prefer the orientation whose pattern face is the outermost face along the shaft
+      const pat = worldSnaps(cand, hub).filter((s) => s.snap.type === 'hub_pattern_16mm' && s.normal.dot(w.axis) > 0.99);
+      const outMost = pat.length ? Math.max(...pat.map((s) => s.pos.dot(w.axis))) : -1e9;
+      if (outMost > bestOut) {
+        bestOut = outMost;
+        bestHub = cand;
+      }
+    }
+    if (!bestHub) continue;
+    out.push(bestHub);
+    const hubSnaps = worldSnaps(bestHub, hub);
+    const face = hubSnaps.filter((s) => s.snap.type === 'hub_pattern_16mm' && s.normal.dot(w.axis) > 0.99);
+    const wheelSku = w.x * w.side > 0 ? S.WHEEL_L : S.WHEEL_R;
+    if (!cat[wheelSku]?.snapPoints.length) continue;
+    const axisLine = (c: PlacedInstance) => {
+      // the wheel's 14 mm bore / REX bore must sit on the shaft axis
+      const bores = worldSnaps(c, cat[wheelSku]).filter((s) => s.snap.type === 'bearing_14mm' || s.snap.type === 'rex_8mm');
+      return bores.some((b) => b.pos.clone().sub(w.hubTarget.pos).cross(w.axis).length() < 1e-3) ? 500 : 0;
+    };
+    const wheel = bestMate(cat, wheelSku, (s) => !s.male && s.type === 'm4_hole', face, hubSnaps, axisLine);
+    if (wheel) out.push(wheel);
   }
 
-  const fast = planJointFasteners(out, cat, null, 4);
-  out.push(...fast.added);
+  out.push(...planJointFasteners(out, cat, null, 4).added);
   return out;
 }

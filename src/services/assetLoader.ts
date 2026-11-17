@@ -4,8 +4,8 @@
 import { Box3, BufferAttribute, BufferGeometry, Color, Material, Matrix4, Mesh, MeshStandardMaterial, Vector3 } from 'three';
 import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
-import type { CatalogPart } from '../types/cad';
-import { type AssetConfig, type RepoRef, cdnBase, localBase } from '../config/assets';
+import type { CatalogPart, SnapPoint } from '../types/cad';
+import { type AssetConfig, type RepoRef, DEFAULT_CAD_REPO, cdnBase, dracoBase, localBase } from '../config/assets';
 import { cacheGet, cacheSet } from './cache';
 import { triangulateRecipe } from '../geometry/recipe';
 import { BUILTIN_CATALOG, BUILTIN_CATALOG_VERSION } from '../data/catalog';
@@ -141,7 +141,9 @@ export function proceduralVisual(part: CatalogPart): PartVisual {
   } else {
     // Unknown part with no recipe: dimension box.
     const [x, y, z] = part.dimensions ?? [24, 24, 24];
-    const box = new Box3(new Vector3(-x / 2, -y / 2, -z / 2), new Vector3(x / 2, y / 2, z / 2));
+    const box = part.bounds
+      ? new Box3(new Vector3(...part.bounds[0]), new Vector3(...part.bounds[1]))
+      : new Box3(new Vector3(-x / 2, -y / 2, -z / 2), new Vector3(x / 2, y / 2, z / 2));
     const g = boxGeometry(box);
     bounds.copy(box);
     meshes.push({ geometry: g, material: cadMaterial('#8a8f98') });
@@ -168,7 +170,7 @@ let gltfLoader: GLTFLoader | null = null;
 function loader(cfg: AssetConfig) {
   if (!gltfLoader) {
     const draco = new DRACOLoader();
-    draco.setDecoderPath(cfg.dracoPath);
+    draco.setDecoderPath(dracoBase(cfg));
     gltfLoader = new GLTFLoader();
     gltfLoader.setDRACOLoader(draco);
   }
@@ -256,8 +258,9 @@ export function fetchGlbVisual(part: CatalogPart, cfg: AssetConfig, repo: RepoRe
     }
     if (part.isCustom) return null;
     const urls: [string, AssetSource][] = [];
-    if (cfg.useCdn) urls.push([`${cdnBase(repo)}parts/${sku}.glb`, 'remote']);
+    // parts shipped with this site: same-origin first (always matches the deployed version), CDN as fallback
     urls.push([`${localBase()}parts/${sku}.glb`, 'local']);
+    if (cfg.useCdn) urls.push([`${cdnBase(repo)}parts/${sku}.glb`, 'remote']);
     for (const [url, src] of urls) {
       if (knownMissing(url)) continue;
       const base = url.slice(0, url.lastIndexOf('parts/'));
@@ -309,4 +312,106 @@ export function visualTriangles(v: PartVisual): Float32Array {
     }
   }
   return new Float32Array(out);
+}
+
+// ------------------------------------------------------------------ exact STEP geometry for export
+
+export interface StepIndexEntry {
+  maxId: number;
+  pd: number;
+  rep: number;
+  origin: number;
+}
+
+async function gunzipText(buf: ArrayBuffer): Promise<string> {
+  const b = new Uint8Array(buf);
+  if (b[0] === 0x1f && b[1] === 0x8b && typeof DecompressionStream !== 'undefined') {
+    const stream = new Blob([b]).stream().pipeThrough(new DecompressionStream('gzip'));
+    return await new Response(stream).text();
+  }
+  return new TextDecoder().decode(b);
+}
+
+const stepIndexCache = new Map<string, Record<string, StepIndexEntry> | null>();
+async function stepIndex(base: string, cfg: AssetConfig) {
+  if (stepIndexCache.has(base)) return stepIndexCache.get(base)!;
+  let idx: Record<string, StepIndexEntry> | null = null;
+  try {
+    const res = await fetchWithTimeout(`${base}parts/step-index.json`, cfg.fetchTimeoutMs);
+    if (res.ok && !(res.headers.get('content-type') ?? '').includes('text/html')) idx = await res.json();
+  } catch {
+    /* none */
+  }
+  stepIndexCache.set(base, idx);
+  return idx;
+}
+
+/** Fetch the manufacturer STEP fragments (gzipped) for the given SKUs; missing ones are skipped. */
+export async function fetchStepFragments(skus: string[], cfg: AssetConfig, onProgress?: (done: number, total: number) => void) {
+  const bases = [
+    ...(cfg.useCdn ? [cfg.cadBaseUrl ?? 'https://fanaustinca.github.io/ignite3d-cad/', cdnBase(cfg.cadRepo ?? DEFAULT_CAD_REPO), cdnBase(cfg.primary)] : []),
+    localBase(),
+  ];
+  const out: Record<string, { maxId: number; pd: number; rep: number; origin: number; data: string }> = {};
+  let done = 0;
+  await Promise.all(
+    skus.map(async (sku) => {
+      const key = `step-frag-${sku}`;
+      const cached = await cacheGet<{ meta: StepIndexEntry; data: string }>(key);
+      if (cached) {
+        out[sku] = { ...cached.meta, data: cached.data };
+      } else
+        for (const base of bases) {
+          const idx = await stepIndex(base, cfg);
+          const meta = idx?.[sku];
+          if (!meta) continue;
+          try {
+            const res = await fetchWithTimeout(`${base}parts/${sku}.stp.gz`, 60000);
+            if (!res.ok) continue;
+            const data = await gunzipText(await res.arrayBuffer());
+            if (!data.includes('PRODUCT_DEFINITION')) continue;
+            out[sku] = { ...meta, data };
+            await cacheSet(key, { meta, data });
+            break;
+          } catch {
+            /* next source */
+          }
+        }
+      onProgress?.(++done, skus.length);
+    }),
+  );
+  return out;
+}
+
+// ------------------------------------------------------------------ real snap points (lazy)
+
+const snapInflight = new Map<string, Promise<SnapPoint[] | null>>();
+/** Load parts/{sku}.json (snap points measured from the real goBILDA STEP). */
+export function fetchPartSnaps(part: CatalogPart, cfg: AssetConfig): Promise<SnapPoint[] | null> {
+  const sku = part.sku;
+  const running = snapInflight.get(sku);
+  if (running) return running;
+  const p = (async () => {
+    const key = `part-snaps-v${BUILTIN_CATALOG_VERSION}-${sku}-${part.snapCount ?? 0}`;
+    const cached = await cacheGet<SnapPoint[]>(key);
+    if (cached) return cached;
+    const bases = [localBase(), ...(cfg.useCdn ? [cdnBase(cfg.primary)] : [])];
+    for (const base of bases) {
+      const idx = await availableGlbs(base, cfg);
+      if (idx && !idx.has(sku)) continue;
+      try {
+        const res = await fetchWithTimeout(`${base}parts/${sku}.json`, cfg.fetchTimeoutMs);
+        if (!res.ok || (res.headers.get('content-type') ?? '').includes('text/html')) continue;
+        const j = (await res.json()) as { snapPoints?: SnapPoint[] };
+        if (!Array.isArray(j.snapPoints)) continue;
+        await cacheSet(key, j.snapPoints);
+        return j.snapPoints;
+      } catch {
+        /* next */
+      }
+    }
+    return null;
+  })().finally(() => snapInflight.delete(sku));
+  snapInflight.set(sku, p);
+  return p;
 }

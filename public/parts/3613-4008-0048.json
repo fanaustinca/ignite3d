@@ -1,0 +1,1 @@
+{"sku":"3613-4008-0048","snapPoints":[{"id":"rexA","type":"rex_8mm","position":[8.0,0,0],"normal":[1,0,0],"depth":16.0,"holeId":"rex"},{"id":"rexB","type":"rex_8mm","position":[-8.0,0,0],"normal":[-1,0,0],"depth":16.0,"holeId":"rex"}]}

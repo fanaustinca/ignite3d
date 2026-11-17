@@ -1,0 +1,13 @@
+{
+ "removeSnapIds": [
+  "h650b",
+  "h651b",
+  "h652b",
+  "h653b",
+  "h654b",
+  "h655b",
+  "h656b",
+  "h657b"
+ ],
+ "notes": "removed rim holes (r>30 mm from axle); kept hub bolt circles (r 11, 23) + 14mm bearing bores"
+}

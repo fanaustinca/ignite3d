@@ -6,7 +6,7 @@ import { massProps, robotBounds, sizeCheck } from '../lib/metrics';
 import { SNAP_COLORS } from '../lib/snap';
 import type { Quat, SnapType, Vec3 } from '../types/cad';
 import { Btn, Section } from './ui';
-import { buildExampleRobot } from '../lib/example';
+import { loadExample } from '../lib/loadExample';
 import { viewportBus } from '../viewport/Viewport';
 
 function NumField({ value, onCommit, suffix, testid }: { value: number; onCommit: (v: number) => void; suffix: string; testid?: string }) {
@@ -93,7 +93,7 @@ function RobotSummary() {
             tone="accent"
             className="mt-3 w-full justify-center"
             onClick={() => {
-              st.setInstances(buildExampleRobot(st.catalog));
+              void loadExample();
               st.toast('Loaded the example drivetrain — every screw was placed by Smart Fasten.', 'ok');
               setTimeout(() => viewportBus.fit(), 50);
             }}

@@ -16,6 +16,8 @@ import { listCustomParts } from './services/customParts';
 import { readHashBuild, toBuildFile } from './lib/share';
 import { download, buildStep, bomRows, buildStl, buildManifest } from './export/files';
 import { buildExampleRobot } from './lib/example';
+import { loadExample } from './lib/loadExample';
+import { ensureAllSnaps } from './services/visuals';
 import { completeOnshapeLogin, loadOnshapeSettings } from './services/onshape';
 import { APP_VERSION } from './version';
 
@@ -195,6 +197,8 @@ function useShortcuts() {
   undo,
   redo,
   buildExampleRobot: () => buildExampleRobot(useCadStore.getState().catalog),
+  loadExample: () => loadExample(),
+  ensureSnaps: (skus: string[]) => ensureAllSnaps(skus),
   exports: {
     step: () => buildStep(useCadStore.getState().instances, useCadStore.getState().catalog),
     stlBytes: () => buildStl(useCadStore.getState().instances, useCadStore.getState().catalog).byteLength,
@@ -205,6 +209,7 @@ function useShortcuts() {
   project: (p: [number, number, number]) => viewportBus.project(p),
   setView: (pos: [number, number, number], target: [number, number, number]) => viewportBus.setView(pos, target),
   ghost: () => (window as unknown as { __igniteGhost?: () => unknown }).__igniteGhost?.(),
+  fastenTarget: () => (window as unknown as { __igniteFastenTarget?: () => unknown }).__igniteFastenTarget?.(),
   worldSnaps: (instanceId: string) => {
     const s = useCadStore.getState();
     const i = s.instances.find((x) => x.instanceId === instanceId);

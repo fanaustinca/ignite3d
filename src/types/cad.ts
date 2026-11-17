@@ -119,6 +119,16 @@ export interface CatalogPart {
   glbScale?: number;
   /** Extra search keywords. */
   tags?: string[];
+  /** Snap points live in parts/{sku}.json and are loaded on demand (real goBILDA parts). */
+  remoteSnaps?: boolean;
+  /** Exact part-frame bounding box [min, max] (real parts); dimensions alone lose the origin offset. */
+  bounds?: [Vec3, Vec3];
+  /** Number of snap points (known before they are loaded). */
+  snapCount?: number;
+  /** Units per goBILDA retail pack. */
+  pack?: number;
+  /** Product page on gobilda.com. */
+  sourceUrl?: string;
 }
 
 export interface PlacedInstance {

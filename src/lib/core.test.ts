@@ -1,6 +1,6 @@
 import { describe, expect, it } from 'vitest';
 import { Quaternion, Vector3 } from 'three';
-import { BUILTIN_CATALOG } from '../data/catalog';
+import { PROCEDURAL_CATALOG as BUILTIN_CATALOG } from '../data/catalog';
 import { triangulateExtrusion, frameNormal, mapPoint, holePts } from '../geometry/recipe';
 import type { CatalogPart, PlacedInstance } from '../types/cad';
 import { compatible, mateTransform, toQuat, toVec3, v3, worldSnaps, distToLine } from './snap';

@@ -14,6 +14,7 @@ import { anyPerp, SNAP_COLORS, toVec3 } from '../lib/snap';
 import { saveCustomPart } from '../services/customParts';
 import { setVisual } from '../services/assetLoader';
 import { download } from '../export/files';
+import { dracoBase } from '../config/assets';
 import { Btn, Modal } from './ui';
 
 type Baked = { geometry: BufferGeometry; material: Material }[];
@@ -260,7 +261,7 @@ export function UploadStudio() {
                   if (!f) return;
                   setErr('');
                   try {
-                    const parsed = await parseFile(f, st.assetConfig.dracoPath);
+                    const parsed = await parseFile(f, dracoBase(st.assetConfig));
                     setRaw(parsed);
                     setFileName(f.name);
                     setMeta((m) => ({ ...m, name: m.name || f.name.replace(/\.\w+$/, '') }));

@@ -1,0 +1,14 @@
+{
+ "removeSnapIds": [
+  "h5a",
+  "h5b",
+  "h6a",
+  "h6b",
+  "h7a",
+  "h7b",
+  "h8a",
+  "h8b"
+ ],
+ "tappedFix": {},
+ "notes": "shaft: M4-tapped axial hole at each end face kept; thread-end faces / e-clip groove (false rex) removed"
+}

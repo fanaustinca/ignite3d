@@ -41,16 +41,25 @@ function threadCapacity(depth: number) {
   return depth > 0 ? Math.min(depth, 12) : 6; // blind tapped holes in blocks / motor faces ≈ 6 mm deep
 }
 
-export function chooseScrew(grip: number, threadedEnd: boolean, tappedDepth: number): { length: number; warning?: string } | null {
+export interface FastenOptions {
+  /** Available socket-head screw lengths (mm), ascending. */
+  lengths?: number[];
+  /** Height of the locknut (mm). */
+  nutHeight?: number;
+}
+
+export function chooseScrew(grip: number, threadedEnd: boolean, tappedDepth: number, opts: FastenOptions = {}): { length: number; warning?: string } | null {
+  const lengths = [...(opts.lengths ?? SCREW_LENGTHS)].sort((a, b) => a - b);
+  const nutH = opts.nutHeight ?? NUT_HEIGHT;
   if (threadedEnd) {
     const cap = threadCapacity(tappedDepth);
-    const fit = SCREW_LENGTHS.filter((L) => L >= grip + Math.min(4, cap) && L <= grip + cap);
+    const fit = lengths.filter((L) => L >= grip + Math.min(4, cap) && L <= grip + cap);
     if (fit.length) return { length: fit[0] };
-    const longer = SCREW_LENGTHS.find((L) => L >= grip + 2 && L <= grip + cap);
+    const longer = lengths.find((L) => L >= grip + 2 && L <= grip + cap);
     if (longer) return { length: longer, warning: 'Short thread engagement' };
     return null;
   }
-  const L = SCREW_LENGTHS.find((x) => x >= grip + NUT_HEIGHT);
+  const L = lengths.find((x) => x >= grip + nutH);
   return L ? { length: L } : null;
 }
 
@@ -59,7 +68,7 @@ export function chooseScrew(grip: number, threadedEnd: boolean, tappedDepth: num
  * coaxial, touching hole layers in both directions. The head goes on the outermost
  * clearance face; the screw ends at a tapped layer or a locknut on the far face.
  */
-export function planFasten(clicked: WorldSnap, all: WorldSnap[], _depth = 0): FastenPlan | FastenFail {
+export function planFasten(clicked: WorldSnap, all: WorldSnap[], opts: FastenOptions = {}, _depth = 0): FastenPlan | FastenFail {
   if (_depth > 3) return { ok: false, reason: 'Could not resolve the joint direction.' };
   if (!FASTENABLE.has(clicked.snap.type) || clicked.snap.male) return { ok: false, reason: 'Pick an M4 hole to fasten.' };
   const origin = clicked.pos.clone();
@@ -86,7 +95,7 @@ export function planFasten(clicked: WorldSnap, all: WorldSnap[], _depth = 0): Fa
     const f = facing[0];
     const outer = onAxis.find((s) => s.instanceId === f.instanceId && s.snap.holeId === f.snap.holeId && s !== f);
     if (!outer) return { ok: false, reason: 'Could not find the outer face of the covering part.' };
-    return planFasten(outer, all, _depth + 1);
+    return planFasten(outer, all, opts, _depth + 1);
   }
 
   // 2) Walk backwards (against dir) to the outermost clearance face.
@@ -96,7 +105,7 @@ export function planFasten(clicked: WorldSnap, all: WorldSnap[], _depth = 0): Fa
     const behind = exits.find((s) => !used.has(s.instanceId) && Math.abs(tOf(s) - start) < FACE_TOL);
     if (!behind) break;
     // a threaded part is behind us: the head must go on the other side of the stack
-    if (behind.snap.tapped) return planFasten(behind, all, _depth + 1);
+    if (behind.snap.tapped) return planFasten(behind, all, opts, _depth + 1);
     used.add(behind.instanceId);
     start -= behind.snap.depth ?? 0;
   }
@@ -129,8 +138,8 @@ export function planFasten(clicked: WorldSnap, all: WorldSnap[], _depth = 0): Fa
   if (partsInJoint.size < 2) return { ok: false, reason: 'No aligned hole on another part — line two parts up first (Snap ON).' };
 
   const grip = clearance.reduce((s, l) => s + l.depth, 0);
-  const pick = chooseScrew(grip, threadedEnd, tappedDepth);
-  if (!pick) return { ok: false, reason: `Stack is ${grip.toFixed(1)} mm thick — too thick for a 40 mm M4 screw.` };
+  const pick = chooseScrew(grip, threadedEnd, tappedDepth, opts);
+  if (!pick) return { ok: false, reason: `Stack is ${grip.toFixed(1)} mm thick — too thick for the longest M4 screw.` };
 
   const head = origin.clone().add(dir.clone().multiplyScalar(start));
   const screwQ = new Quaternion().setFromUnitVectors(new Vector3(0, -1, 0), dir);

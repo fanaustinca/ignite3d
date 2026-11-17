@@ -1,0 +1,47 @@
+{
+ "notes": "axis Y, centred (mesh y -11.000..11.000, length 22.000, max r 4.0). REX outer profile: REX hex bore-less body: hexagon 7.0 mm across flats with corners turned to 8.0 mm dia (r=4.0 arcs), M4 threaded both ends",
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b"
+ ],
+ "addSnaps": [
+  {
+   "id": "n0a",
+   "type": "m4_hole",
+   "p": [
+    0,
+    -11.0,
+    0
+   ],
+   "n": [
+    0,
+    -1,
+    0
+   ],
+   "depth": 22.0,
+   "tapped": true,
+   "holeId": "n0"
+  },
+  {
+   "id": "n0b",
+   "type": "m4_hole",
+   "p": [
+    0,
+    11.0,
+    0
+   ],
+   "n": [
+    0,
+    1,
+    0
+   ],
+   "depth": 22.0,
+   "tapped": true,
+   "holeId": "n0"
+  }
+ ]
+}

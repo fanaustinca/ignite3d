@@ -1,0 +1,49 @@
+{
+ "notes": "nut: axis Y, flat bearing face (end-plane r=3.54) at y=0, body +Y, total height 4.850 mm (mesh y 0.000..4.850); other end r=2.83",
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h3b"
+ ],
+ "addSnaps": [
+  {
+   "id": "n0a",
+   "type": "m4_hole",
+   "p": [
+    0,
+    0,
+    0
+   ],
+   "n": [
+    0,
+    -1,
+    0
+   ],
+   "depth": 4.85,
+   "tapped": true,
+   "holeId": "n0"
+  },
+  {
+   "id": "n0b",
+   "type": "m4_hole",
+   "p": [
+    0,
+    4.85,
+    0
+   ],
+   "n": [
+    0,
+    1,
+    0
+   ],
+   "depth": 4.85,
+   "tapped": true,
+   "holeId": "n0"
+  }
+ ]
+}

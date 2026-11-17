@@ -1,0 +1,4 @@
+{
+ "notes": "STEP is an assembly (standoff + 2 screws + 2 bodies, 56 mm extent vs 43.5 mm part); excluded. axis Y, centred (mesh y -28.005..27.995, length 56.000, max r 4.0). ASSEMBLY STEP (standoff + 2 screws + 2 other bodies; mesh extent includes screws) - excluded",
+ "exclude": true
+}

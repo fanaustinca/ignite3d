@@ -11,6 +11,7 @@ const PORT = 4791 + Math.floor(Math.random() * 100);
 const URL0 = `http://localhost:${PORT}/`;
 const SHOTS = join(ROOT, 'tests/screenshots');
 const DL = join(ROOT, 'tests/.downloads');
+const CAD_DIR = process.env.CAD_DIR || join(process.env.HOME || '', 'ignite3d-cad');
 const pkg = JSON.parse(readFileSync(join(ROOT, 'package.json'), 'utf8'));
 mkdirSync(SHOTS, { recursive: true });
 rmSync(DL, { recursive: true, force: true });
@@ -25,7 +26,7 @@ await new Promise((res, rej) => {
 });
 
 const browser = await puppeteer.launch({
-  protocolTimeout: 60000,
+  protocolTimeout: 240000,
   executablePath: chrome,
   headless: true,
   args: ['--no-sandbox', '--use-angle=swiftshader', '--enable-unsafe-swiftshader', '--ignore-gpu-blocklist', '--window-size=1600,950'],
@@ -40,6 +41,7 @@ const results = [];
 const pageErrors = [];
 let page;
 let fixtureGlb = null;
+let blockLocal = null; // a same-origin /parts path to 404 (forces the CDN fallback)
 
 async function newPage({ fresh = true } = {}) {
   const p = await browser.newPage();
@@ -53,9 +55,17 @@ async function newPage({ fresh = true } = {}) {
   p.on('request', (req) => {
     const u = req.url();
     if (u.includes('cdn.jsdelivr.net')) {
-      if (u.endsWith('/parts/index.json')) return req.respond({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ skus: fixtureGlb ? ['1102-0003-0048'] : [] }) });
-      if (fixtureGlb && u.endsWith('/parts/1102-0003-0048.glb')) return req.respond({ status: 200, headers: cors, contentType: 'model/gltf-binary', body: fixtureGlb });
+      if (u.endsWith('/parts/index.json')) return req.respond({ status: 200, headers: cors, contentType: 'application/json', body: JSON.stringify({ skus: fixtureGlb ? ['1120-0002-0072'] : [] }) });
+      if (fixtureGlb && u.endsWith('/parts/1120-0002-0072.glb')) return req.respond({ status: 200, headers: cors, contentType: 'model/gltf-binary', body: fixtureGlb });
       return req.respond({ status: 404, headers: cors, body: 'not found' });
+    }
+    if (blockLocal && u.startsWith(URL0) && u.includes(blockLocal)) return req.respond({ status: 404, body: 'gone' });
+    if (u.includes('github.io/ignite3d-cad/')) {
+      // serve the CAD data repo from a local checkout when present (CI has none -> placeholders)
+      const rel = u.split('github.io/ignite3d-cad/')[1].split('?')[0];
+      const f = join(CAD_DIR, rel);
+      if (existsSync(f)) return req.respond({ status: 200, headers: cors, contentType: rel.endsWith('.json') ? 'application/json' : 'application/gzip', body: readFileSync(f) });
+      return req.respond({ status: 404, headers: cors, body: '' });
     }
     if (u.includes('github.com') || u.includes('gstatic.com')) return req.respond({ status: 404, headers: cors, body: '' });
     req.continue();
@@ -150,9 +160,11 @@ await test('catalog has the full goBILDA seed set and search works', async () =>
   await page.type('[data-testid="catalog-search"]', '435 rpm');
   await sleep(150);
   const rows = await page.$$eval('[data-sku]', (els) => els.map((e) => e.getAttribute('data-sku')));
-  assert(rows.length === 1 && rows[0] === '5203-2402-0014', `search rows ${rows}`);
   await page.click('[data-testid="catalog-search"]', { clickCount: 3 });
   await page.keyboard.press('Backspace');
+  await sleep(100);
+  // real goBILDA: the 13.7:1 (435 RPM) Yellow Jacket exists in 5202 (D-shaft), 5203 and 5204 (REX) versions
+  assert(rows.includes('5203-2402-0014') && rows.every((r) => /^520[234]-\d{4}-0014$/.test(r)), `search rows ${rows}`);
 });
 
 await test('places the first channel on the floor grid with a real mouse click', async () => {
@@ -223,14 +235,24 @@ await test('Smart Fasten tool: click a joint hole -> M4×10 screw + locknut thro
   // B's web faces +Z away from A; pick a B hole whose axis passes through an A hole
   const outer = sb.find((b) => b.type === 'm4_hole' && b.normal[2] > 0.99 && sa.some((a) => Math.hypot(a.pos[0] - b.pos[0], a.pos[1] - b.pos[1]) < 1e-4 && a.type === 'm4_hole'));
   assert(outer, 'aligned outer hole');
-  await hoverWorld([outer.pos[0] + 3, outer.pos[1], outer.pos[2]]);
+  // the real wall is full of slots: find a hover point on metal whose nearest hole is this one
+  let ok = false;
+  for (const [dx, dy] of [[3, 0], [-3, 0], [0, 3], [0, -3], [2.4, 2.4], [-2.4, 2.4], [2.4, -2.4], [-2.4, -2.4], [3.4, 0], [0, 3.4]]) {
+    await hoverWorld([outer.pos[0] + dx, outer.pos[1] + dy, outer.pos[2]]);
+    const t = await st(() => window.__ignite.fastenTarget());
+    if (t && Math.hypot(t.pos[0] - outer.pos[0], t.pos[1] - outer.pos[1], t.pos[2] - outer.pos[2]) < 1e-3) {
+      ok = true;
+      break;
+    }
+  }
+  assert(ok, 'could hover the intended hole');
   await shot('04-fasten-hover');
   await page.mouse.down();
   await page.mouse.up();
   await frames(2);
   const inst = await st(() => window.__ignite.store.getState().instances);
   const screws = inst.filter((i) => i.sku.startsWith('2800-'));
-  const nuts = inst.filter((i) => i.sku === '2810-0004-0001');
+  const nuts = inst.filter((i) => (i.sku === '2812-0004-0007' || i.sku === '2810-0004-0001'));
   assert(screws.length === 1 && nuts.length === 1, `screws ${screws.length} nuts ${nuts.length}`);
   assert(screws[0].sku === '2800-0004-0010', `screw ${screws[0].sku}`);
   assert(d(screws[0].position, outer.pos) < 1e-4, 'screw head seated on the outer face, on the hole axis');
@@ -328,7 +350,7 @@ await test('example drivetrain: 80 parts, 48 screws, all screws on hole axes, fi
 });
 
 await test('18" cube turns red when the robot is too big', async () => {
-  await st(() => window.__ignite.store.getState().addInstance({ sku: '1109-0016-0432', position: [120, 200, 0], quaternion: [0, 0, 0, 1] }));
+  await st(() => window.__ignite.store.getState().addInstance({ sku: '1120-0017-0432', position: [140, 200, 0], quaternion: [0, 0, 0, 1] }));
   await sleep(200);
   const label = await page.$eval('[data-testid="sizing-label"]', (e) => e.textContent);
   assert(/OVER/.test(label), label);
@@ -340,13 +362,14 @@ await test('18" cube turns red when the robot is too big', async () => {
   await page.keyboard.press('c');
 });
 
-await test('mirror swaps mecanum Left <-> Right', async () => {
-  const left = await st(() => window.__ignite.store.getState().instances.find((i) => i.sku === '3625-0001-0096'));
-  await st((id) => window.__ignite.store.getState().select([id]), left.instanceId);
+await test('mirror makes a mirrored copy across the left/right plane', async () => {
+  const motor = await st(() => window.__ignite.store.getState().instances.find((i) => i.sku.startsWith('5203-')));
+  const n0 = await st(() => window.__ignite.store.getState().instances.length);
+  await st((id) => window.__ignite.store.getState().select([id]), motor.instanceId);
   await page.keyboard.press('m');
   const last = await st(() => window.__ignite.store.getState().instances.at(-1));
-  assert(last.sku === '3625-0002-0096', `mirrored sku ${last.sku}`);
-  assert(Math.abs(last.position[0] + left.position[0]) < 1e-6, 'mirrored across X');
+  assert((await st(() => window.__ignite.store.getState().instances.length)) === n0 + 1, 'one copy');
+  assert(last.sku === motor.sku && Math.abs(last.position[0] + motor.position[0]) < 1e-6, 'mirrored across X');
   await page.keyboard.down('Control');
   await page.keyboard.press('z');
   await page.keyboard.up('Control');
@@ -372,12 +395,14 @@ await test('exports STEP (Onshape), STL, GLB and JSON manifest', async () => {
   await page.click('[data-testid="open-export"]');
   await shot('10-export');
   await page.click('[data-testid="export-step"]');
-  stepFile = await waitFile(/\.step$/);
+  stepFile = await waitFile(/\.step$/, 180000);
   const step = readFileSync(stepFile, 'utf8');
   assert(step.startsWith('ISO-10303-21;') && step.trim().endsWith('END-ISO-10303-21;'), 'STEP envelope');
-  assert((step.match(/NEXT_ASSEMBLY_USAGE_OCCURRENCE/g) || []).length === 80, 'one occurrence per part');
+  // >= 80: goBILDA STEPs of assemblies (e.g. motors) carry their own sub-occurrences; OpenCascade checks the 80 top-level instances below
+  assert((step.match(/NEXT_ASSEMBLY_USAGE_OCCURRENCE/g) || []).length >= 80, 'one occurrence per part');
   assert(/SI_UNIT\(\.MILLI\.,\.METRE\.\)/.test(step), 'millimetres');
-  assert(/CYLINDRICAL_SURFACE/.test(step), 'true cylindrical holes');
+  assert(step.length < 150e6, `STEP size ${(step.length / 1e6).toFixed(1)} MB`);
+  if (existsSync(join(CAD_DIR, 'parts', 'step-index.json'))) assert(/CYLINDRICAL_SURFACE/.test(step), 'exact goBILDA B-rep with true cylindrical holes');
   await page.click('[data-testid="export-stl"]');
   const stl = readFileSync(await waitFile(/\.stl$/));
   const tris = stl.readUInt32LE(80);
@@ -432,8 +457,14 @@ await test('custom part: upload STL, auto-centre a hole, save, snap it onto a ch
   // make an STL of a single 3-hole flat beam with the app's own exporter
   await st(() => {
     const s = window.__ignite.store.getState();
-    s.setInstances([{ instanceId: 'beam', sku: '1102-0003-0048', position: [0, 0, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]);
+    s.setInstances([{ instanceId: 'beam', sku: '1102-0003-0024', position: [0, 0, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]);
   });
+  // wait for the real mesh (the STL exporter uses whatever is loaded)
+  for (let i = 0; i < 60; i++) {
+    if (['local', 'cached'].includes(await st(() => window.__ignite.store.getState().assetStatus['1102-0003-0024']))) break;
+    await sleep(150);
+  }
+  const beamT = await st(() => window.__ignite.store.getState().catalog['1102-0003-0024'].dimensions[1]);
   for (const f of readdirSync(DL)) if (f.endsWith('.stl')) rmSync(join(DL, f));
   await page.click('[data-testid="open-export"]');
   await page.click('[data-testid="export-stl"]');
@@ -446,15 +477,15 @@ await test('custom part: upload STL, auto-centre a hole, save, snap it onto a ch
   const input = await page.$('[data-testid="upload-file"]');
   await input.uploadFile(fresh);
   await sleep(1200);
-  // STL is Z-up: the 3 mm plate spans z, holes at x = -16, 0, 16. Centered -> top face at z = +1.5.
-  await page.evaluate(() => window.__igniteStudio.tag([16 + 3.1, 0.6, 1.5], [0, 0, 1]));
+  // STL is Z-up: the plate thickness spans z, holes at x = -8, 0, 8. Centered -> top face at z = +t/2.
+  await page.evaluate((t) => window.__igniteStudio.tag([8 + 3.1, 0.6, t / 2], [0, 0, 1]), beamT);
   await sleep(150);
   const holes = await page.evaluate(() => window.__igniteStudio.holes());
   assert(holes.length === 2, `through hole -> 2 faces, got ${holes.length}: ${JSON.stringify(holes)} bounds ${JSON.stringify(await page.evaluate(() => window.__igniteStudio.bounds()))}`);
   assert(holes[0].type === 'm4_hole', `classified ${holes[0].type}`);
-  const err = Math.hypot(holes[0].position[0] - 16, holes[0].position[1] - 0);
+  const err = Math.hypot(holes[0].position[0] - 8, holes[0].position[1] - 0);
   assert(err < 0.15, `auto-centred within ${err.toFixed(3)} mm`);
-  assert(Math.abs(holes[0].depth - 3) < 0.05, `thickness ${holes[0].depth}`);
+  assert(Math.abs(holes[0].depth - beamT) < 0.05, `thickness ${holes[0].depth} vs ${beamT}`);
   await shot('12-upload-studio');
   await page.click('[data-testid="save-custom"]');
   await sleep(400);
@@ -464,27 +495,41 @@ await test('custom part: upload STL, auto-centre a hole, save, snap it onto a ch
   await page.keyboard.press('Escape');
 });
 
-await test('real .glb from the GitHub CDN replaces the procedural model (and is cached)', async () => {
-  // build a fixture GLB (a 5-hole beam) and serve it as the 3-hole beam's CDN mesh
-  fixtureGlb = Buffer.from(await st(() => window.__ignite.partGlb('1102-0005-0080')));
+await test('real goBILDA meshes load from the site, and fall back to the GitHub CDN', async () => {
+  // 1) normal: real mesh from this site
+  await st(() => {
+    const s = window.__ignite.store.getState();
+    s.set({ modal: null });
+    s.setInstances([{ instanceId: 'r', sku: '1120-0001-0048', position: [0, 24, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]);
+  });
+  let status;
+  for (let i = 0; i < 60 && !['local', 'cached'].includes(status); i++) {
+    await sleep(150);
+    status = await st(() => window.__ignite.store.getState().assetStatus['1120-0001-0048']);
+  }
+  assert(status === 'local' || status === 'cached', `site mesh status ${status}`);
+  // 2) local copy missing -> jsDelivr copy is used
+  fixtureGlb = Buffer.from(await st(() => window.__ignite.partGlb('1120-0002-0072')));
+  blockLocal = '/parts/1120-0002-0072.glb';
   const p3 = await newPage({ fresh: false });
   await p3.goto(URL0, { waitUntil: 'load' });
   await sleep(500);
-  await p3.evaluate(() => {
+  await p3.evaluate(async () => {
+    indexedDB.deleteDatabase('ignite3d');
+    localStorage.removeItem('ignite3d-missing-glb');
     const s = window.__ignite.store.getState();
     s.set({ modal: null });
-    s.setInstances([{ instanceId: 'b', sku: '1102-0003-0048', position: [0, 0, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]);
+    s.setInstances([{ instanceId: 'b', sku: '1120-0002-0072', position: [0, 24, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]);
   });
-  let status;
-  for (let i = 0; i < 40 && status !== 'remote'; i++) {
+  status = undefined;
+  for (let i = 0; i < 60 && status !== 'remote'; i++) {
     await sleep(150);
-    status = await p3.evaluate(() => window.__ignite.store.getState().assetStatus['1102-0003-0048']);
+    status = await p3.evaluate(() => window.__ignite.store.getState().assetStatus['1120-0002-0072']);
   }
-  assert(status === 'remote', `status ${status}`);
-  const other = await p3.evaluate(() => window.__ignite.store.getState().assetStatus['1120-0001-0048']);
-  assert(other !== 'remote', 'parts without a .glb stay procedural');
+  assert(status === 'remote', `CDN fallback status ${status}`);
   await p3.close();
   fixtureGlb = null;
+  blockLocal = null;
 });
 
 await test('no uncaught errors in the page', async () => {

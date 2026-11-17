@@ -1,0 +1,97 @@
+{
+ "notes": "axis Y, centred (mesh y -10.000..10.000, length 20.000, max r 4.0). REX outer profile: REX hex bore-less body: hexagon 7.0 mm across flats with corners turned to 8.0 mm dia (r=4.0 arcs), M4 threaded both ends",
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h3b",
+  "h4a",
+  "h4b",
+  "h5a",
+  "h5b",
+  "h6a",
+  "h6b",
+  "h7a",
+  "h7b",
+  "h8a",
+  "h8b",
+  "h9a",
+  "h9b",
+  "h10a",
+  "h10b",
+  "h11a",
+  "h11b",
+  "h12a",
+  "h12b",
+  "h13a",
+  "h13b",
+  "h14a",
+  "h14b",
+  "h15a",
+  "h15b",
+  "h16a",
+  "h16b",
+  "h17a",
+  "h17b",
+  "h18a",
+  "h18b",
+  "h19a",
+  "h19b",
+  "h20a",
+  "h20b",
+  "h21a",
+  "h21b",
+  "h22a",
+  "h22b",
+  "h23a",
+  "h23b",
+  "h24a",
+  "h24b",
+  "h25a",
+  "h25b",
+  "h26a",
+  "h26b",
+  "h27a",
+  "h27b"
+ ],
+ "addSnaps": [
+  {
+   "id": "n0a",
+   "type": "m4_hole",
+   "p": [
+    0,
+    -10.0,
+    0
+   ],
+   "n": [
+    0,
+    -1,
+    0
+   ],
+   "depth": 20.0,
+   "tapped": true,
+   "holeId": "n0"
+  },
+  {
+   "id": "n0b",
+   "type": "m4_hole",
+   "p": [
+    0,
+    10.0,
+    0
+   ],
+   "n": [
+    0,
+    1,
+    0
+   ],
+   "depth": 20.0,
+   "tapped": true,
+   "holeId": "n0"
+  }
+ ]
+}

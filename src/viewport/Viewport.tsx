@@ -268,7 +268,7 @@ function Interaction() {
     if (anchorCache.current.part !== part) anchorCache.current = { part, list: anchorOrder(part) };
     return anchorCache.current.list;
   };
-  const snapCache = useRef(new Map<string, { key: PlacedInstance; snaps: WorldSnap[] }>());
+  const snapCache = useRef(new Map<string, { key: PlacedInstance; part: CatalogPart; snaps: WorldSnap[] }>());
   const bestRot = useRef<{ key: string; k: number }>({ key: '', k: 0 });
 
   useEffect(() => {
@@ -336,9 +336,9 @@ function Interaction() {
 
   function worldSnapsCached(inst: PlacedInstance, part: CatalogPart) {
     const c = snapCache.current.get(inst.instanceId);
-    if (c && c.key === inst) return c.snaps;
+    if (c && c.key === inst && c.part === part) return c.snaps;
     const snaps = worldSnaps(inst, part);
-    snapCache.current.set(inst.instanceId, { key: inst, snaps });
+    snapCache.current.set(inst.instanceId, { key: inst, part, snaps });
     return snaps;
   }
 
@@ -550,6 +550,8 @@ function Interaction() {
       dirty.current = true;
     };
     (window as unknown as Record<string, unknown>).__igniteClick = (additive = false) => onClick(additive);
+    (window as unknown as Record<string, unknown>).__igniteFastenTarget = () =>
+      fastenTarget.current ? { instanceId: fastenTarget.current.instanceId, snap: fastenTarget.current.snap.id, pos: toVec3(fastenTarget.current.pos) } : null;
     (window as unknown as Record<string, unknown>).__igniteGhost = () => ({
       position: toVec3(ghostState.current.position),
       quaternion: toQuat(ghostState.current.quaternion),

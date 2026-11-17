@@ -2,6 +2,7 @@
 // Every hole is placed on the goBILDA 8 mm grid: 14 mm bores at 24 mm pitch with
 // 4×M4 on a 16 mm square around each, so parts snapped hole-to-hole stay aligned.
 import type { CatalogPart, Category, Extrusion, ProceduralRecipe, SnapPoint, Vec3 } from '../types/cad';
+import gobildaIndex from './gobilda.json';
 import { recipeBounds, recipeVolume, snapsFromRecipe, sub3, gearPts, hexPts, dPts, norm3, cross3, scale3, add3 } from '../geometry/recipe';
 import { C, bore14, circle, dHole, framed, m4, male, prism, rect, rexHole, roundHole, rrect, tappedHole, throughHole, poly } from './builders';
 
@@ -920,8 +921,21 @@ function buildCatalog(): CatalogPart[] {
   return defs.map(finish);
 }
 
-export const BUILTIN_CATALOG: CatalogPart[] = buildCatalog();
+/** Ignite3D's parametric models (fallback geometry + logic tests). */
+export const PROCEDURAL_CATALOG: CatalogPart[] = buildCatalog();
+
+/**
+ * Real goBILDA catalogue (generated from goBILDA's STEP files, see ignite3d-assets/build_catalog.py).
+ * Snap points are loaded per part on demand; a parametric model (when one exists for the SKU) is kept as
+ * instant fallback geometry while the real mesh loads.
+ */
+const REAL = gobildaIndex as CatalogPart[];
+const procBySku = new Map(PROCEDURAL_CATALOG.map((p) => [p.sku, p]));
+export const USING_REAL_CATALOG = REAL.length > 0;
+export const BUILTIN_CATALOG: CatalogPart[] = USING_REAL_CATALOG
+  ? REAL.map((p) => ({ ...p, snapPoints: [], procedural: undefined, tags: procBySku.get(p.sku)?.tags }))
+  : PROCEDURAL_CATALOG;
 
 export const shcsSku = (L: number) => `2800-0004-${pad(L)}`;
-export const LOCKNUT_SKU = '2810-0004-0001';
+export const LOCKNUT_SKU = USING_REAL_CATALOG ? '2812-0004-0007' : '2810-0004-0001';
 

@@ -1,0 +1,25 @@
+{
+ "notes": "hole reducer: flange underside at y=0 (flange r=7.8), spigot r=7.0 toward -Y (mesh y -1.000..1.000); male bearing_14mm normal (0,-1,0) = insertion into the bore",
+ "male": [
+  {
+   "id": "flange_underside",
+   "type": "bearing_14mm",
+   "position": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "upVector": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "male": true
+  }
+ ]
+}

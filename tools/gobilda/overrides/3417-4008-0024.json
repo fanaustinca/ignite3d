@@ -1,0 +1,247 @@
+{
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1b",
+  "h9a",
+  "h9b",
+  "h10b",
+  "h19a",
+  "h19b",
+  "h20a",
+  "h20b",
+  "h21a",
+  "h21b",
+  "h22a",
+  "h22b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    0.96094,
+    0.0,
+    -0.27675
+   ],
+   "id": "borea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    -6.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 12.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    0.96094,
+    0.0,
+    -0.27675
+   ],
+   "id": "boreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    6.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 12.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh0a",
+   "type": "m4_hole",
+   "p": [
+    4.007,
+    0.0,
+    14.9513
+   ],
+   "n": [
+    0.2588,
+    0.0,
+    0.9659
+   ],
+   "depth": 5.8445,
+   "tapped": true,
+   "holeId": "h0",
+   "full": true
+  },
+  {
+   "id": "mh9a",
+   "type": "m4_hole",
+   "p": [
+    -14.6375,
+    0.0,
+    -3.9256
+   ],
+   "n": [
+    -0.9659,
+    0.0,
+    -0.2588
+   ],
+   "depth": 6.0972,
+   "tapped": true,
+   "holeId": "h9",
+   "full": true
+  },
+  {
+   "id": "mh19a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -5.875,
+    -8.0037
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h19",
+   "full": true
+  },
+  {
+   "id": "mh19b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.5,
+    -8.0037
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h19",
+   "full": true
+  },
+  {
+   "id": "mh20a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -5.875,
+    -8.0037
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h20",
+   "full": true
+  },
+  {
+   "id": "mh20b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.5,
+    -8.0037
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h20",
+   "full": true
+  },
+  {
+   "id": "mh21a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -5.875,
+    7.9963
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h21",
+   "full": true
+  },
+  {
+   "id": "mh21b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.5,
+    7.9963
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h21",
+   "full": true
+  },
+  {
+   "id": "mh22a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -5.875,
+    7.9963
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h22",
+   "full": true
+  },
+  {
+   "id": "mh22b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.5,
+    7.9963
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 8.375,
+   "tapped": false,
+   "holeId": "h22",
+   "full": true
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore rex_8mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -6.00..6.00"
+}

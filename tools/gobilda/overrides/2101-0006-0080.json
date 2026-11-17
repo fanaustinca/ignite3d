@@ -1,0 +1,47 @@
+{
+ "removeSnapIds": [],
+ "tappedFix": {},
+ "notes": "shaft: M4-tapped axial hole at each end face kept; thread-end faces / e-clip groove (false rex) removed",
+ "male": [
+  {
+   "id": "endA",
+   "type": "d_6mm",
+   "position": [
+    0.0,
+    -40.0,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "upVector": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "male": true
+  },
+  {
+   "id": "endB",
+   "type": "d_6mm",
+   "position": [
+    0.0,
+    40.0,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "upVector": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "male": true
+  }
+ ]
+}

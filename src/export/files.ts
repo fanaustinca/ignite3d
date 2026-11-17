@@ -4,7 +4,7 @@ import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import type { CatalogPart, PlacedInstance } from '../types/cad';
 import { instanceMatrix } from '../lib/snap';
 import { visualFor, visualTriangles } from '../services/assetLoader';
-import { exportStep } from './step';
+import { exportStep, type StepFragment } from './step';
 import { toBuildFile } from '../lib/share';
 import { APP_VERSION } from '../version';
 
@@ -22,9 +22,10 @@ export function download(name: string, data: BlobPart, type = 'application/octet
 const ZUP = new Matrix4().makeRotationX(Math.PI / 2);
 const visible = (insts: PlacedInstance[]) => insts.filter((i) => !i.hidden);
 
-export function buildStep(instances: PlacedInstance[], catalog: Record<string, CatalogPart>, name = 'Ignite3D Robot') {
+export function buildStep(instances: PlacedInstance[], catalog: Record<string, CatalogPart>, name = 'Ignite3D Robot', fragments?: Record<string, StepFragment | undefined>) {
   return exportStep(visible(instances), catalog, {
     name,
+    fragments,
     meshFor: (sku) => (catalog[sku] ? visualTriangles(visualFor(catalog[sku])) : null),
   });
 }

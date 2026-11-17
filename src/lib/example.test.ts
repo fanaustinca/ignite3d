@@ -1,5 +1,5 @@
 import { describe, expect, it } from 'vitest';
-import { BUILTIN_CATALOG } from '../data/catalog';
+import { PROCEDURAL_CATALOG as BUILTIN_CATALOG } from '../data/catalog';
 import { buildExampleRobot } from './example';
 import { robotBounds, sizeCheck, massProps } from './metrics';
 import { exportStep } from '../export/step';
@@ -18,7 +18,7 @@ describe('example drivetrain', () => {
     expect(count('1309-')).toBe(4);
     expect(count('3625-')).toBe(4);
     const screws = robot.filter((i) => i.sku.startsWith('2800-'));
-    const nuts = robot.filter((i) => i.sku === '2810-0004-0001');
+    const nuts = robot.filter((i) => i.sku === '2810-0004-0001' || i.sku === '2812-0004-0007');
     // 4 rail/cross joints + 4 motor faces + 4 hub/wheel joints, up to 4 screws each
     expect(screws.length).toBe(48);
     // only the 4 cross-member joints need locknuts; motor faces and goBILDA hubs are threaded

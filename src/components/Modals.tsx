@@ -9,10 +9,10 @@ import { APP_VERSION, TEAM_CREDIT } from '../version';
 import { SNAP_COLORS } from '../lib/snap';
 import { DEFAULT_REPO, cdnBase, parseRepo, repoLabel, saveAssetConfig, type AssetConfig } from '../config/assets';
 import { cacheClear } from '../services/cache';
-import { clearGlbIndex, clearMissingCache, loadFullCatalog } from '../services/assetLoader';
+import { clearGlbIndex, clearMissingCache, fetchStepFragments, loadFullCatalog } from '../services/assetLoader';
 import { listCustomParts } from '../services/customParts';
 import { resetUpgradeAttempts } from '../services/visuals';
-import { buildExampleRobot } from '../lib/example';
+import { loadExample } from '../lib/loadExample';
 import { viewportBus } from '../viewport/Viewport';
 import { loadOnshapeSettings, onshapeToken, pushToOnshape, saveOnshapeSettings, startOnshapeLogin } from '../services/onshape';
 
@@ -27,7 +27,7 @@ const SHORTCUTS: [string, string][] = [
   ['W / E', 'Gizmo: move / rotate'],
   ['F', 'Smart Fasten tool (click a hole in a joint)'],
   ['J', 'Fasten Joint: auto-screw all aligned joints of the selection'],
-  ['M / Shift+M', 'Mirror selection left/right / front/back (mecanum L↔R swapped)'],
+  ['M / Shift+M', 'Mirror selection left/right / front/back (mirrored copy)'],
   ['Ctrl+G / Ctrl+Shift+G', 'Group / ungroup sub-assembly'],
   ['H / Alt+H', 'Hide selection / unhide all'],
   ['G', 'Ghost (x-ray) selection'],
@@ -112,7 +112,7 @@ export function HelpModal() {
               tone="accent"
               data-testid="help-example"
               onClick={() => {
-                st.setInstances(buildExampleRobot(st.catalog));
+                void loadExample();
                 st.set({ modal: null });
                 setTimeout(() => viewportBus.fit(), 50);
               }}
@@ -145,8 +145,8 @@ export function HelpModal() {
       {tab === 'onshape' && (
         <div className="space-y-3">
           <p>
-            <b>STEP Assembly</b> is the recommended Onshape path. Each placed part becomes an assembly instance named by its goBILDA SKU, at its exact position (millimetres, Z-up). Holes are written as
-            true cylinders, so Onshape mate connectors snap to hole centres.
+            <b>STEP Assembly</b> is the recommended Onshape path. Each placed part becomes an assembly instance at its exact position (millimetres, Z-up), using <b>goBILDA&apos;s own exact
+            geometry</b> for the part, so holes are true cylinders and Onshape mate connectors snap to hole centres.
           </p>
           <ol className="list-decimal space-y-1 pl-5">
             <li>
@@ -173,6 +173,7 @@ export function HelpModal() {
               </div>
               <div className="text-muted">
                 Version <span data-testid="about-version">{APP_VERSION}</span> · <span className="text-accent font-medium">{TEAM_CREDIT}</span>
+              <div className="text-[12px]">Part geometry: goBILDA STEP files (gobilda.com)</div>
               </div>
             </div>
           </div>
@@ -319,7 +320,16 @@ export function ExportModal() {
           primary: true,
           title: 'STEP Assembly (Onshape)',
           desc: 'Onshape → + → Import. One instance per part, named by SKU, exact positions, true round holes for mate connectors. Also opens in SolidWorks, Fusion, Inventor.',
-          onClick: () => run('STEP Assembly (Onshape)', () => download(`${file}.step`, buildStep(st.instances, st.catalog, name), 'application/step')),
+          onClick: () =>
+            run('STEP Assembly (Onshape)', async () => {
+              const skus = [...new Set(st.instances.filter((i) => !i.hidden).map((i) => i.sku))];
+              st.toast(`Fetching exact goBILDA geometry for ${skus.length} part types…`, 'info');
+              const frags = await fetchStepFragments(skus, st.assetConfig);
+              const n = Object.keys(frags).length;
+              download(`${file}.step`, buildStep(st.instances, st.catalog, name, frags), 'application/step');
+              if (n < skus.length)
+                st.toast(`${n}/${skus.length} part types used exact goBILDA geometry; ${skus.length - n} were exported as placeholders (CAD data unreachable or not available for that part).`, 'warn');
+            }),
         })}
         {item({ id: 'export-stl', title: 'STL mesh', desc: 'Single mesh in millimetres, Z-up. Good for renders, slicers and quick Onshape mesh import.', onClick: () => run('STL mesh', () => download(`${file}.stl`, buildStl(st.instances, st.catalog), 'model/stl')) })}
         {item({ id: 'export-glb', title: 'GLB (glTF)', desc: 'One node per part with SKU names; metres, Y-up (glTF standard). For web viewers and Blender.', onClick: () => run('GLB (glTF)', async () => download(`${file}.glb`, await buildGlb(st.instances, st.catalog), 'model/gltf-binary')) })}

@@ -11,6 +11,10 @@ export interface RepoRef {
 
 export interface AssetConfig {
   primary: RepoRef;
+  /** Data repo holding exact goBILDA STEP fragments (parts/{sku}.stp.gz), fetched only when exporting STEP. */
+  cadRepo?: RepoRef;
+  /** Direct URL of the CAD data site (GitHub Pages of the data repo; CORS-enabled, no 20 MB CDN file limit). */
+  cadBaseUrl?: string;
   useCdn: boolean;
   /** Extra team repos whose catalog.json parts are merged in (custom printed parts etc.). */
   teamRepos: RepoRef[];
@@ -21,11 +25,15 @@ export interface AssetConfig {
 
 export const DEFAULT_REPO: RepoRef = { owner: 'fanaustinca', repo: 'ignite3d', branch: 'main', basePath: 'public' };
 
+export const DEFAULT_CAD_REPO: RepoRef = { owner: 'fanaustinca', repo: 'ignite3d-cad', branch: 'main', basePath: '' };
+
 export const ASSET_CONFIG: AssetConfig = {
   primary: DEFAULT_REPO,
+  cadRepo: DEFAULT_CAD_REPO,
+  cadBaseUrl: 'https://fanaustinca.github.io/ignite3d-cad/',
   useCdn: true,
   teamRepos: [],
-  dracoPath: 'https://www.gstatic.com/draco/versioned/decoders/1.5.7/',
+  dracoPath: '', // '' = self-hosted ./draco/ (see dracoBase())
   fetchTimeoutMs: 6000,
 };
 
@@ -75,3 +83,8 @@ export function parseRepo(input: string): RepoRef | null {
 }
 
 export const repoLabel = (r: RepoRef) => `${r.owner}/${r.repo}@${r.branch}${r.basePath ? ':' + r.basePath : ''}`;
+
+/** Draco decoder location: self-hosted next to the app unless overridden. */
+export function dracoBase(c: AssetConfig) {
+  return c.dracoPath || `${localBase()}draco/`;
+}

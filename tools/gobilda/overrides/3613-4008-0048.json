@@ -1,0 +1,39 @@
+{
+ "addSnaps": [
+  {
+   "id": "rexA",
+   "type": "rex_8mm",
+   "p": [
+    8.0,
+    0,
+    0
+   ],
+   "n": [
+    1,
+    0,
+    0
+   ],
+   "depth": 16.0,
+   "tapped": false,
+   "holeId": "rex"
+  },
+  {
+   "id": "rexB",
+   "type": "rex_8mm",
+   "p": [
+    -8.0,
+    0,
+    0
+   ],
+   "n": [
+    -1,
+    0,
+    0
+   ],
+   "depth": 16.0,
+   "tapped": false,
+   "holeId": "rex"
+  }
+ ],
+ "notes": "8mm REX hex bore not auto-detected (non-circular); added by hand at both hub faces, assumed through"
+}
