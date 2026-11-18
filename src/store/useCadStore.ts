@@ -115,7 +115,7 @@ export const useCadStore = create<CadState>()(
       tool: 'select',
       gizmoMode: 'translate',
       gridStep: 8,
-      angleStep: 15,
+      angleStep: 45,
       preview: null,
       showSizingCube: false,
       showCoG: false,
@@ -154,7 +154,7 @@ export const useCadStore = create<CadState>()(
       setInstances: (list) => set({ instances: list, selection: [] }),
       updateTransforms: (map) =>
         set((st) => ({
-          instances: st.instances.map((i) => (map[i.instanceId] ? { ...i, ...map[i.instanceId] } : i)),
+          instances: st.instances.map((i) => (map[i.instanceId] ? carrySnapFrame(i, map[i.instanceId]) : i)),
         })),
       removeSelected: () => {
         const sel = new Set(get().selection);
@@ -269,22 +269,12 @@ export const useCadStore = create<CadState>()(
 
       fastenAt: (instanceId, snapId) => {
         const st = get();
-        const inst = st.instances.find((i) => i.instanceId === instanceId);
-        const part = inst && st.catalog[inst.sku];
-        if (!inst || !part) return null;
-        const clicked = worldSnaps(inst, part).find((s) => s.snap.id === snapId);
-        if (!clicked) return null;
-        const all = allWorldSnaps(st.instances, st.catalog, clicked.pos, 80);
-        const plan = planFasten(clicked, all, fastenOptions(st.catalog));
-        if (!plan.ok) {
-          st.toast(plan.reason, 'warn');
+        const res = planFastenAt(st.instances, st.catalog, instanceId, snapId);
+        if (!res.ok) {
+          st.toast(res.reason, 'warn');
           return null;
         }
-        const keys = existingScrewAxes(st.instances, st.catalog);
-        if (keys.has(axisKey(plan.head, plan.dir))) {
-          st.toast('That joint already has a screw.', 'warn');
-          return null;
-        }
+        const plan = res;
         const added = instancesForPlan(plan, st.catalog);
         st.addInstances(added);
         st.toast(
@@ -323,6 +313,40 @@ export const useCadStore = create<CadState>()(
     },
   ),
 );
+
+/** Move an instance and carry its mated hole axis/pivot along, so R and [ ] keep working about the right axis. */
+function carrySnapFrame(i: PlacedInstance, t: { position: Vec3; quaternion: Quat }): PlacedInstance {
+  const out: PlacedInstance = { ...i, ...t };
+  if (!i.snapAxis && !i.snapPivot) return out;
+  const dq = q4(t.quaternion).multiply(q4(i.quaternion).invert());
+  if (i.snapAxis) out.snapAxis = toVec3(v3(i.snapAxis).applyQuaternion(dq).normalize());
+  if (i.snapPivot) out.snapPivot = toVec3(v3(i.snapPivot).sub(v3(i.position)).applyQuaternion(dq).add(v3(t.position)));
+  return out;
+}
+
+/** Plan a screw at one hole face of a placed part (no side effects). Also rejects axes that already have a screw. */
+export function planFastenAt(
+  instances: PlacedInstance[],
+  catalog: Record<string, CatalogPart>,
+  instanceId: string,
+  snapId: string,
+): FastenPlan | { ok: false; reason: string } {
+  const inst = instances.find((i) => i.instanceId === instanceId);
+  const part = inst && catalog[inst.sku];
+  if (!inst || !part) return { ok: false, reason: 'Part not found.' };
+  const clicked = worldSnaps(inst, part).find((s) => s.snap.id === snapId);
+  if (!clicked) return { ok: false, reason: 'Hole not found.' };
+  const all = allWorldSnaps(instances.filter((i) => !isFastener(i.sku)), catalog, clicked.pos, 80);
+  const plan = planFasten(clicked, all, fastenOptions(catalog));
+  if (!plan.ok) return plan;
+  if (!catalog[shcsSku(plan.screwLength)]) return { ok: false, reason: `M4×${plan.screwLength} screw is not in the catalogue.` };
+  if (existingScrewAxes(instances, catalog).has(axisKey(plan.head, plan.dir))) return { ok: false, reason: 'That hole already has a screw.' };
+  return plan;
+}
+
+/** Socket-head screws, nuts — hardware that Smart Fasten places by itself. */
+export const isScrewSku = (sku: string) => /^280[02]-/.test(sku);
+export const isFastener = (sku: string) => screwOrNut(sku);
 
 export function allWorldSnaps(instances: PlacedInstance[], catalog: Record<string, CatalogPart>, near?: Vector3, radius = Infinity) {
   const out: WorldSnap[] = [];

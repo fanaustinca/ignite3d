@@ -376,6 +376,63 @@ await test('mirror makes a mirrored copy across the left/right plane', async () 
   await page.keyboard.press('Escape');
 });
 
+await test('U-channel T joint on a quad block: a dropped screw auto-sizes and sits flush outside; rotation ring snaps 45°', async () => {
+  const saved = await st(() => window.__ignite.store.getState().instances);
+  await st(async () => {
+    const I = window.__ignite;
+    await I.ensureSnaps(['1120-0005-0144', '1201-0043-0002', '2800-0004-0016', '2800-0004-0007', '2800-0004-0008']);
+    const s = I.store.getState();
+    s.setInstances([
+      { instanceId: 'A', sku: '1120-0005-0144', position: [0, 0, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false },
+      { instanceId: 'Q', sku: '1201-0043-0002', position: [0, -24, 0], quaternion: [Math.SQRT1_2, 0, Math.SQRT1_2, 0], hidden: false, ghosted: false },
+      { instanceId: 'B', sku: '1120-0005-0144', position: [0, -96, 0], quaternion: [0, 0, -Math.SQRT1_2, Math.SQRT1_2], hidden: false, ghosted: false },
+    ]);
+  });
+  await st(() => window.__ignite.setView([-110, -5, -75], [-24, -32, -16]));
+  await sleep(800);
+  // pick a deliberately wrong length; aim straight down the hole (the ray reaches the buried block face)
+  await st(() => window.__ignite.store.getState().startPlacing('2800-0004-0016'));
+  const p = await st(() => window.__ignite.project([-24, -32, -16]));
+  await page.mouse.move(p.x + 4, p.y + 4);
+  await sleep(300);
+  await page.mouse.move(p.x, p.y);
+  await sleep(800);
+  const g = await st(() => window.__ignite.ghost());
+  assert(g.fasten, 'screw ghost resolved by Smart Fasten: ' + JSON.stringify(g));
+  assert(Math.hypot(g.position[0] + 24, g.position[1] + 32, g.position[2] + 16) < 1e-3, 'head on the outer flange face ' + g.position);
+  const sku = await st(() => window.__ignite.store.getState().placingSku);
+  assert(/^2800-0004-000[78]$/.test(sku), 'auto length M4x7/8, got ' + sku);
+  await shot('19-screw-ghost');
+  await page.mouse.click(p.x, p.y);
+  await sleep(300);
+  const added = await st(() => window.__ignite.store.getState().instances.slice(3));
+  assert(added.length === 1 && added[0].sku === sku, 'one screw, no nut (threads): ' + added.map((a) => a.sku));
+  await page.keyboard.press('Escape');
+  // rotation ring: select B, drag its Y ring ~95° -> snaps to 90° (45° steps)
+  await st(() => window.__ignite.store.getState().select(['B']));
+  await st(() => window.__ignite.setView([500, 300, 600], [0, -60, 0]));
+  await sleep(600);
+  const R = Math.hypot(500, 396, 600) * Math.tan((20 * Math.PI) / 180) * 0.36;
+  const P = (t) => st((a) => window.__ignite.project(a), [R * Math.cos(t), -96, R * Math.sin(t)]);
+  const q0 = await P(0);
+  await page.mouse.move(q0.x, q0.y);
+  await sleep(200);
+  await page.mouse.down();
+  for (let i = 1; i <= 10; i++) {
+    const q = await P((-i * Math.PI * 1.05) / 20);
+    await page.mouse.move(q.x, q.y);
+    await sleep(40);
+  }
+  const readout = await page.$eval('[data-testid="rotate-readout"]', (e) => e.textContent);
+  await shot('20-rotate-ring');
+  await page.mouse.up();
+  await sleep(200);
+  assert(/Y \+90°/.test(readout), 'readout ' + readout);
+  const q = await st(() => window.__ignite.store.getState().instances.find((i) => i.instanceId === 'B').quaternion);
+  assert(Math.abs(Math.abs(q[0]) - 0.5) < 1e-6 && Math.abs(Math.abs(q[3]) - 0.5) < 1e-6, 'rotated 90° about Y: ' + q);
+  await st((s) => window.__ignite.store.getState().setInstances(s), saved);
+});
+
 await test('BOM groups SKUs and downloads a CSV', async () => {
   await page.click('[data-testid="open-bom"]');
   const rows = await page.$$eval('[data-testid="bom-table"] tbody tr', (r) => r.length);

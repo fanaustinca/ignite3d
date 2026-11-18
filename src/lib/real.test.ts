@@ -6,7 +6,8 @@ import type { CatalogPart, PlacedInstance, SnapPoint } from '../types/cad';
 import { BUILTIN_CATALOG, USING_REAL_CATALOG } from '../data/catalog';
 import { mateTransform, toQuat, toVec3, worldSnaps, distToLine } from './snap';
 import { planFasten } from './fasten';
-import { fastenOptions } from '../store/useCadStore';
+import { fastenOptions, planFastenAt, planJointFasteners } from '../store/useCadStore';
+import { bestAlignment, occupiedFaces } from './placement';
 import { buildExampleRobot } from './example';
 import { robotBounds, sizeCheck } from './metrics';
 
@@ -99,5 +100,60 @@ describe.skipIf(!real)('real goBILDA parts', () => {
     expect(robot.filter((i) => /^36(01|14)-/.test(i.sku)).length).toBe(4);
     expect(count('2800-')).toBeGreaterThanOrEqual(32);
     expect(sizeCheck(robotBounds(robot, cat)).over).toBe(false);
+  });
+
+  it('U-channel T joint through a quad block mount: channel slides over the blocks, screws sit flush on the outside', () => {
+    const A = inst('A', '1120-0005-0144');
+    const as = worldSnaps(A, cat[A.sku]);
+    const qb = cat['1201-0043-0002'];
+    // quad block plate on the outside of A's web, centred on the web's 8 mm pattern
+    const tA = as.find((s) => s.snap.type === 'm4_hole' && s.normal.y < -0.99 && Math.abs(s.pos.x - 8) < 1e-3 && Math.abs(s.pos.z - 8) < 1e-3)!;
+    const aQ = qb.snapPoints.find((s) => !s.tapped && s.normal[1] < -0.99 && Math.abs(s.position[0] - 8) < 0.1 && Math.abs(s.position[2] - 8) < 0.1)!;
+    const mQ = mateTransform(aQ, tA, (bestAlignment(aQ, tA, qb, as) * Math.PI) / 2);
+    const Q = inst('Q', qb.sku, mQ.position, mQ.quaternion);
+    const qs = worldSnaps(Q, qb);
+    // channel B's end slides over the four blocks: a flange-inner hole onto a block's outer tapped face
+    const block = qs.find((s) => s.snap.id === 'h0a')!;
+    const bp = cat['1120-0005-0144'];
+    const aB = bp.snapPoints.find((s) => s.id === 'h65b')!; // flange inner face, 8 mm from the end
+    const mB = mateTransform(aB, block, (bestAlignment(aB, block, bp, qs) * Math.PI) / 2);
+    const B = inst('B', bp.sku, mB.position, mB.quaternion);
+    const bs = worldSnaps(B, bp);
+    const opposed = bs.filter((s) => qs.some((q) => q.pos.distanceTo(s.pos) < 1e-3 && q.normal.dot(s.normal) < -0.999)).length;
+    const sameWay = bs.filter((s) => qs.some((q) => q.pos.distanceTo(s.pos) < 1e-3 && q.normal.dot(s.normal) > 0.999)).length;
+    expect(opposed).toBeGreaterThanOrEqual(4); // both flanges (and the web) land on block faces
+    expect(sameWay).toBe(0); // no material inside material
+
+    // buried faces (block face under B's flange) are occupied, so nothing else can snap into the wall
+    const list = [A, Q, B];
+    const occ = occupiedFaces(list, cat, (i, p) => worldSnaps(i, p));
+    const buried = [...occ].find((s) => s.instanceId === 'Q' && s.snap.id === 'h0a');
+    expect(buried).toBeDefined();
+
+    // hand-placing a screw "into" that buried block face is resolved by Smart Fasten: head on B's outer face
+    const plan = planFastenAt(list, cat, 'Q', 'h0a');
+    expect(plan.ok).toBe(true);
+    if (!plan.ok) return;
+    expect(plan.threadedEnd).toBe(true);
+    expect(plan.nut).toBeUndefined();
+    expect(plan.grip).toBeCloseTo(2.5, 3);
+    expect(plan.screwLength).toBeGreaterThanOrEqual(6);
+    expect(plan.screwLength).toBeLessThanOrEqual(2.5 + 8.5);
+    const headFace = bs.find((s) => s.pos.distanceTo(plan.head) < 1e-3 && s.normal.dot(plan.dir) < -0.999);
+    expect(headFace, 'head sits on an exposed outer face of B').toBeDefined();
+    expect(occ.has(headFace!)).toBe(false);
+
+    // Fasten Joint: every screw head on an exposed face, every threaded tip inside the tapped hole
+    const added = planJointFasteners(list, cat, null, 4).added;
+    const screws = added.filter((i) => i.sku.startsWith('2800-'));
+    expect(screws.length).toBeGreaterThanOrEqual(8);
+    const allFaces = list.flatMap((i) => worldSnaps(i, cat[i.sku]));
+    for (const sc of screws) {
+      const head = new Vector3(...sc.position);
+      const dir = new Vector3(0, -1, 0).applyQuaternion(new Quaternion(...sc.quaternion));
+      const f = allFaces.find((s) => s.pos.distanceTo(head) < 1e-3 && s.normal.dot(dir) < -0.999);
+      expect(f, `screw ${sc.sku} head on a hole face`).toBeDefined();
+      expect(occ.has(f!), `screw ${sc.sku} head not buried`).toBe(false);
+    }
   });
 });

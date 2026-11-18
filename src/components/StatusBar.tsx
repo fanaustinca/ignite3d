@@ -24,7 +24,7 @@ export function StatusBar() {
   else if (st.selection.length)
     hint = (
       <>
-        Drag the gizmo · <kbd>W</kbd>/<kbd>E</kbd> move/rotate · <kbd>[</kbd> <kbd>]</kbd> slide on axis · <kbd>H</kbd> hide · <kbd>G</kbd> x-ray · <kbd>Del</kbd> delete · <kbd>Ctrl+D</kbd> duplicate
+        Drag an arrow to move, a ring to rotate ({st.angleStep ? `${st.angleStep}° steps` : 'free'}) · <kbd>W</kbd>/<kbd>E</kbd> move/rotate · <kbd>[</kbd> <kbd>]</kbd> slide on axis · <kbd>H</kbd> hide · <kbd>G</kbd> x-ray · <kbd>Del</kbd> delete · <kbd>Ctrl+D</kbd> duplicate
       </>
     );
   else

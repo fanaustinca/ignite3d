@@ -11,12 +11,17 @@
 
 - **Hole-to-hole snapping on the goBILDA grid.** Every part's holes (8 mm grid, 14 mm bores, 16 mm square
   M4 patterns) are modelled as snap points. Hover a hole, click, done — parts land flush with their hole axes
-  aligned, and the default orientation is the quarter-turn that lines up the most holes. `R` rotates 90°,
+  aligned, and the default orientation is the quarter-turn that presses the most hole faces together
+  (never one that puts material inside material); faces already covered by another part are not offered. `R` rotates 90°,
   `Tab` mates with a different hole on the new part, `S` turns snapping off for free placement with a gizmo.
 - **Smart Fasten.** `F` + click a hole in a joint, or `J` to fasten every aligned joint at once (up to 4
   well-spread screws per joint). Ignite3D walks the stack of plates on that hole axis, adds up the thickness,
   picks the right M4 SHCS length, puts the head on the outside and a nyloc nut on the far face — or threads it
   straight into tapped holes (motor faces, goBILDA hubs, standoffs, blocks) with no nut.
+  Dropping a screw from the catalogue onto a hole does the same thing: the length is corrected to fit the
+  joint, the head always lands on the exposed outer face (never inside a wall), and the locknut is added.
+- **Move arrows + rotation rings** on the selection: drag a ring to turn the part about X / Y / Z, snapping
+  in 45° steps (15° / 90° / free in the toolbar). `R` turns 90° about the mated hole axis.
 - **619 real goBILDA parts** converted from goBILDA's own STEP files: U-channels (incl. the real slot / oval hole
   pattern), low-side & mini channels, goRAIL, beams, grid plates, quad blocks & mounts, clamping mounts, pillow
   blocks, Yellow Jacket motors (5202/5203/5204), servos & ServoBlocks, REX / D shafts, hubs, collars, bearings,

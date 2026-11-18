@@ -24,7 +24,7 @@ const SHORTCUTS: [string, string][] = [
   ['Tab', 'Snap using the next compatible hole on the ghost part'],
   ['[  ]', 'Slide selected part along its mated axis 1 mm (Shift: 8 mm)'],
   ['S', 'Toggle hole snapping (OFF = free placement + gizmo grid)'],
-  ['W / E', 'Gizmo: move / rotate'],
+  ['W / E', 'Gizmo: move arrows + rotation rings (drag a ring, snaps to the rotate increment, 45° default) / rotate-only'],
   ['F', 'Smart Fasten tool (click a hole in a joint)'],
   ['J', 'Fasten Joint: auto-screw all aligned joints of the selection'],
   ['M / Shift+M', 'Mirror selection left/right / front/back (mirrored copy)'],
@@ -83,7 +83,7 @@ export function HelpModal() {
             {[
               ['Pick a part', 'Click any part in the left catalog. A see-through orange “ghost” follows your mouse. The first part lands on the floor grid.'],
               ['Snap it', 'Move over a part you already placed. Coloured rings show the holes it can mate with; the pulsing ring is the one it will snap to. Click to place. R rotates 90°, Tab tries another hole on the new part.'],
-              ['Fasten it', 'Press J (Fasten Joint) to add screws + nylon locknuts to every aligned joint — screw lengths are picked from the plate thickness. Or press F and click individual holes.'],
+              ['Fasten it', 'Press J (Fasten Joint) to add screws + nylon locknuts to every aligned joint — screw lengths are picked from the plate thickness. Or press F and click individual holes, or drop a screw from the catalogue onto a hole: its length is fixed up to fit, the head always goes on the outside and a locknut is added when needed.'],
               ['Check it', 'B shows the 18″ starting cube (turns red if you are too big). C shows the center of gravity. Weight and cost are in the bottom bar; BOM lists every SKU.'],
               ['Export it', 'Export → STEP Assembly, then in Onshape: Create → Assembly… or Import (cloud icon) the .step file. Every part keeps its SKU name and exact position.'],
             ].map(([t, d], i) => (

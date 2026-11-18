@@ -26,7 +26,9 @@ import {
   type Intersection,
 } from 'three';
 import type { OrbitControls as OrbitControlsImpl } from 'three-stdlib';
-import { useCadStore } from '../store/useCadStore';
+import { isFastener, isScrewSku, lockNutSku, planFastenAt, useCadStore } from '../store/useCadStore';
+import { shcsSku } from '../data/catalog';
+import { bestAlignment, occupiedFaces } from '../lib/placement';
 import type { CatalogPart, PlacedInstance, Quat, SnapPoint, Vec3 } from '../types/cad';
 import { useVisual } from '../services/visuals';
 import { visualFor } from '../services/assetLoader';
@@ -218,27 +220,6 @@ function anchorOrder(part: CatalogPart): SnapPoint[] {
   });
 }
 
-/** Which of the 4 quarter-turns about the mating axis aligns the most hole faces with the target part. */
-function bestAlignment(anchor: SnapPoint, target: WorldSnap, part: CatalogPart, targetSnaps: WorldSnap[]) {
-  const hash = new Set(targetSnaps.map((s) => `${Math.round(s.pos.x * 4)},${Math.round(s.pos.y * 4)},${Math.round(s.pos.z * 4)}`));
-  let best = 0;
-  let bestN = -1;
-  for (let k = 0; k < 4; k++) {
-    const m = mateTransform(anchor, target, (k * Math.PI) / 2);
-    let n = 0;
-    const v = new Vector3();
-    for (const s of part.snapPoints) {
-      v.set(...s.position).applyQuaternion(m.quaternion).add(m.position);
-      if (hash.has(`${Math.round(v.x * 4)},${Math.round(v.y * 4)},${Math.round(v.z * 4)}`)) n++;
-    }
-    if (n > bestN) {
-      bestN = n;
-      best = k;
-    }
-  }
-  return best;
-}
-
 const markerGeo = new TorusGeometry(2.7, 0.5, 6, 20);
 const targetGeo = new TorusGeometry(4.2, 0.8, 8, 28);
 const Z = new Vector3(0, 0, 1);
@@ -252,13 +233,35 @@ function Interaction() {
   const ghostRef = useRef<Group>(null);
   const markersRef = useRef<InstancedMesh>(null);
   const targetRef = useRef<Mesh>(null);
-  const ghostState = useRef<{ position: Vector3; quaternion: Quaternion; target: WorldSnap | null; anchor: SnapPoint | null; valid: boolean }>({
+  const ghostState = useRef<{
+    position: Vector3;
+    quaternion: Quaternion;
+    target: WorldSnap | null;
+    anchor: SnapPoint | null;
+    valid: boolean;
+    /** Screw placement resolved by Smart Fasten (right length, head on the outer face, nut if needed). */
+    fasten: { instanceId: string; snapId: string } | null;
+  }>({
     position: new Vector3(),
     quaternion: new Quaternion(),
     target: null,
     anchor: null,
     valid: false,
+    fasten: null,
   });
+  const nutGhostRef = useRef<Group>(null);
+  // Fasten tool: preview of the screw the planner would add at the hovered hole
+  const fastenGhostRef = useRef<Group>(null);
+  const [fastenSku, setFastenSku] = useState<string | null>(null);
+  const fastenVisual = useVisual(fastenSku ?? '');
+  const fastenMats = useMemo(() => fastenVisual?.meshes.map((m) => ghostMaterial(m.material)) ?? [], [fastenVisual]);
+  useEffect(() => {
+    dirty.current = true;
+  }, [fastenVisual]);
+  const catalogNow = useCadStore((s) => s.catalog);
+  const nutVisual = useVisual(lockNutSku(catalogNow));
+  const nutMats = useMemo(() => nutVisual?.meshes.map((m) => ghostMaterial(m.material)) ?? [], [nutVisual]);
+  const occCache = useRef<{ instances: PlacedInstance[] | null; set: Set<WorldSnap> }>({ instances: null, set: new Set() });
   const fastenTarget = useRef<WorldSnap | null>(null);
   const placingSku = useCadStore((s) => s.placingSku);
   const ghostVisual = useVisual(placingSku ?? '');
@@ -431,10 +434,34 @@ function Interaction() {
       }
       fastenTarget.current = best;
       showTarget(best);
+      const fg = fastenGhostRef.current;
+      const ng = nutGhostRef.current;
+      if (fg) fg.visible = false;
+      if (ng) ng.visible = false;
+      if (best) {
+        const plan = planFastenAt(st.instances, st.catalog, best.instanceId, best.snap.id);
+        if (plan.ok) {
+          const sku = shcsSku(plan.screwLength);
+          if (sku !== fastenSku) setFastenSku(sku);
+          if (fg) {
+            fg.position.set(...plan.screw.position);
+            fg.quaternion.set(...plan.screw.quaternion);
+            fg.visible = sku === fastenSku;
+          }
+          if (ng && plan.nut) {
+            ng.position.set(...plan.nut.position);
+            ng.quaternion.set(...plan.nut.quaternion);
+            ng.visible = true;
+          }
+          const info = `Click: M4×${plan.screwLength}${plan.nut ? ' + locknut' : ' into threads'} · grip ${plan.grip.toFixed(1)} mm`;
+          if (st.lastSnapInfo !== info) st.set({ lastSnapInfo: info });
+        } else if (st.lastSnapInfo !== plan.reason) st.set({ lastSnapInfo: plan.reason });
+      }
       gl.domElement.style.cursor = best ? 'crosshair' : 'default';
       return;
     }
     fastenTarget.current = null;
+    if (fastenGhostRef.current) fastenGhostRef.current.visible = false;
 
     // ---------- placing (read from the store, not React state, so the first mouse move after
     // picking a part is never lost to a render that has not committed yet)
@@ -444,6 +471,7 @@ function Interaction() {
       setMarkers([]);
       showTarget(null);
       if (g) g.visible = false;
+      if (nutGhostRef.current) nutGhostRef.current.visible = false;
       gl.domElement.style.cursor = hovered ? 'pointer' : 'default';
       return;
     }
@@ -451,7 +479,9 @@ function Interaction() {
     const gs = ghostState.current;
     gs.target = null;
     gs.anchor = null;
+    gs.fasten = null;
     gs.valid = !!hit;
+    if (nutGhostRef.current) nutGhostRef.current.visible = false;
     if (!hit) {
       g.visible = false;
       setMarkers([]);
@@ -461,8 +491,52 @@ function Interaction() {
     g.visible = true;
     let snapped = false;
     const anchors = anchorsFor(ghostPart);
+    if (occCache.current.instances !== st.instances)
+      occCache.current = { instances: st.instances, set: occupiedFaces(st.instances, st.catalog, worldSnapsCached) };
+    const occupied = occCache.current.set;
+
+    // ---------- screws: a hand-placed screw is Smart Fasten — the planner picks the length, puts the head on
+    // the outside of the stack and adds a locknut, so it can never stick out or sink into a wall.
+    if (st.snapEnabled && hovInst && hovPart && isScrewSku(ghostPart.sku) && !isFastener(hovInst.sku)) {
+      const cands = faceSnaps((s) => (s.snap.type === 'm4_hole' || s.snap.type === 'hub_pattern_16mm') && !s.snap.male);
+      setMarkers(cands);
+      const byDist = cands
+        .map((s) => ({ s, d: s.pos.distanceTo(hit.point) }))
+        .filter((x) => x.d < snapRadius())
+        .sort((a, b) => a.d - b.d);
+      const best = byDist[0]?.s ?? null;
+      if (best) {
+        const plan = planFastenAt(st.instances, st.catalog, best.instanceId, best.snap.id);
+        if (plan.ok) {
+          const want = shcsSku(plan.screwLength);
+          if (want !== st.placingSku && st.catalog[want]) {
+            // swap the ghost to the screw length the joint needs (re-evaluated on the next frame)
+            st.set({ placingSku: want, lastSnapInfo: `Auto length: M4×${plan.screwLength} for a ${plan.grip.toFixed(1)} mm grip` });
+            dirty.current = true;
+          }
+          gs.position.copy(v3(plan.screw.position));
+          gs.quaternion.copy(q4(plan.screw.quaternion));
+          gs.fasten = { instanceId: best.instanceId, snapId: best.snap.id };
+          gs.target = best;
+          const ng = nutGhostRef.current;
+          if (ng && plan.nut) {
+            ng.position.set(...plan.nut.position);
+            ng.quaternion.set(...plan.nut.quaternion);
+            ng.visible = true;
+          }
+          showTarget(best);
+          g.visible = true;
+          g.position.copy(gs.position);
+          g.quaternion.copy(gs.quaternion);
+          return;
+        }
+        st.set({ lastSnapInfo: plan.reason });
+      }
+      // no joint here: a lone screw can still sit on an exposed hole face (below)
+    }
+
     if (st.snapEnabled && hovInst) {
-      const cands = faceSnaps((s) => anchors.some((a) => compatible(a, s.snap)));
+      const cands = faceSnaps((s) => !occupied.has(s) && anchors.some((a) => compatible(a, s.snap)));
       setMarkers(cands);
       let best: WorldSnap | null = null;
       let bd = snapRadius();
@@ -521,6 +595,10 @@ function Interaction() {
     if (st.placingSku) {
       const gs = ghostState.current;
       if (!gs.valid) return;
+      if (gs.fasten) {
+        st.fastenAt(gs.fasten.instanceId, gs.fasten.snapId);
+        return;
+      }
       const id = st.addInstance({
         sku: st.placingSku,
         position: toVec3(gs.position),
@@ -557,6 +635,7 @@ function Interaction() {
       quaternion: toQuat(ghostState.current.quaternion),
       target: ghostState.current.target ? { instanceId: ghostState.current.target.instanceId, snap: ghostState.current.target.snap.id, type: ghostState.current.target.snap.type } : null,
       anchor: ghostState.current.anchor?.id ?? null,
+      fasten: ghostState.current.fasten,
     });
     void scene;
   });
@@ -566,6 +645,12 @@ function Interaction() {
       <group ref={ghostRef} visible={false}>
         {ghostVisual?.meshes.map((m, k) => <mesh key={k} geometry={m.geometry} material={ghostMats[k]} raycast={() => null} />)}
       </group>
+      <group ref={fastenGhostRef} visible={false}>
+        {fastenVisual?.meshes.map((m, k) => <mesh key={k} geometry={m.geometry} material={fastenMats[k]} raycast={() => null} />)}
+      </group>
+      <group ref={nutGhostRef} visible={false}>
+        {nutVisual?.meshes.map((m, k) => <mesh key={k} geometry={m.geometry} material={nutMats[k]} raycast={() => null} />)}
+      </group>
       <instancedMesh ref={markersRef} args={[markerGeo, undefined, 1500]} frustumCulled={false} raycast={() => null} count={0}>
         <meshBasicMaterial toneMapped={false} />
       </instancedMesh>
@@ -573,6 +658,149 @@ function Interaction() {
         <meshBasicMaterial color="#ff6a13" toneMapped={false} depthTest={false} transparent />
       </mesh>
     </>
+  );
+}
+
+
+// ------------------------------------------------------------------ rotation rings (shown with the move arrows)
+
+const RING_AXES: { axis: Vector3; color: string; rot: [number, number, number]; name: string }[] = [
+  { axis: new Vector3(1, 0, 0), color: '#ef4444', rot: [0, Math.PI / 2, 0], name: 'X' },
+  { axis: new Vector3(0, 1, 0), color: '#22c55e', rot: [Math.PI / 2, 0, 0], name: 'Y' },
+  { axis: new Vector3(0, 0, 1), color: '#3b82f6', rot: [0, 0, 0], name: 'Z' },
+];
+const ringGeo = new TorusGeometry(1, 0.014, 6, 96);
+const ringPickGeo = new TorusGeometry(1, 0.075, 6, 48);
+const ringTickGeo = new BoxGeometry(0.02, 0.09, 0.02);
+
+/**
+ * Three rotation rings around the selection, drawn together with the move arrows so parts can be turned
+ * without switching gizmo modes. Dragging a ring turns the selection about that world axis through the
+ * selection centre, snapping to the rotate increment (45° by default).
+ */
+function RotationRings({ sel, center }: { sel: PlacedInstance[]; center: Vector3 }) {
+  const { camera, gl, controls } = useThree();
+  const group = useRef<Group>(null);
+  const angleStep = useCadStore((s) => s.angleStep);
+  const [hover, setHover] = useState<number | null>(null);
+  const [drag, setDrag] = useState<{ k: number; deg: number } | null>(null);
+  const ticks = useMemo(() => {
+    const out: { p: Vec3; r: number }[] = [];
+    for (let i = 0; i < 8; i++) out.push({ p: [Math.cos((i * Math.PI) / 4), Math.sin((i * Math.PI) / 4), 0], r: (i * Math.PI) / 4 });
+    return out;
+  }, []);
+
+  useFrame(() => {
+    const gr = group.current;
+    if (!gr) return;
+    gr.position.copy(center);
+    const persp = camera as unknown as { fov?: number };
+    const f = Math.tan(((persp.fov ?? 40) * Math.PI) / 360);
+    gr.scale.setScalar(camera.position.distanceTo(center) * f * 0.36);
+  });
+
+  const begin = (k: number, e: { stopPropagation: () => void; point: Vector3; nativeEvent: PointerEvent }) => {
+    e.stopPropagation();
+    if (e.nativeEvent.button !== 0) return;
+    viewportBus.gizmoDragging = true;
+    const oc = controls as unknown as { enabled: boolean } | null;
+    if (oc) oc.enabled = false;
+    const axis = RING_AXES[k].axis.clone();
+    const plane = new Plane().setFromNormalAndCoplanarPoint(axis, center);
+    const rc = new Raycaster();
+    const ndc = new Vector2();
+    const onPlane = (ev: PointerEvent) => {
+      const r = gl.domElement.getBoundingClientRect();
+      ndc.set(((ev.clientX - r.left) / r.width) * 2 - 1, -((ev.clientY - r.top) / r.height) * 2 + 1);
+      rc.setFromCamera(ndc, camera);
+      const p = new Vector3();
+      return rc.ray.intersectPlane(plane, p) ? p.sub(center) : null;
+    };
+    const v0 = onPlane(e.nativeEvent) ?? e.point.clone().sub(center).projectOnPlane(axis);
+    const items = new Map(sel.map((i) => [i.instanceId, instanceMatrix(i)]));
+    let last = 0;
+    setDrag({ k, deg: 0 });
+    const move = (ev: PointerEvent) => {
+      const v = onPlane(ev);
+      if (!v || v.lengthSq() < 1e-6) return;
+      let ang = Math.atan2(v0.clone().cross(v).dot(axis), v0.dot(v));
+      const step = useCadStore.getState().angleStep;
+      if (step > 0) ang = Math.round(ang / ((step * Math.PI) / 180)) * ((step * Math.PI) / 180);
+      if (Math.abs(ang - last) < 1e-9) return;
+      last = ang;
+      const delta = new Matrix4()
+        .makeTranslation(center.x, center.y, center.z)
+        .multiply(new Matrix4().makeRotationAxis(axis, ang))
+        .multiply(new Matrix4().makeTranslation(-center.x, -center.y, -center.z));
+      const prev: Record<string, { position: Vec3; quaternion: Quat }> = {};
+      const pos = new Vector3();
+      const q = new Quaternion();
+      const sc = new Vector3();
+      for (const [id, m] of items) {
+        delta.clone().multiply(m).decompose(pos, q, sc);
+        prev[id] = { position: toVec3(pos), quaternion: toQuat(q.normalize()) };
+      }
+      useCadStore.getState().set({ preview: prev });
+      setDrag({ k, deg: Math.round((ang * 180) / Math.PI) });
+    };
+    const up = () => {
+      window.removeEventListener('pointermove', move);
+      window.removeEventListener('pointerup', up);
+      const st = useCadStore.getState();
+      if (st.preview) st.updateTransforms(st.preview);
+      st.set({ preview: null });
+      if (oc) oc.enabled = true;
+      setDrag(null);
+      setTimeout(() => (viewportBus.gizmoDragging = false), 0);
+    };
+    window.addEventListener('pointermove', move);
+    window.addEventListener('pointerup', up);
+  };
+
+  return (
+    <group ref={group}>
+      {RING_AXES.map((a, k) => {
+        const active = drag ? drag.k === k : hover === k;
+        if (drag && drag.k !== k) return null;
+        return (
+          <group key={a.name} rotation={a.rot}>
+            <mesh geometry={ringGeo} renderOrder={31} raycast={() => null}>
+              <meshBasicMaterial color={active ? '#ff6a13' : a.color} depthTest={false} transparent opacity={active ? 1 : 0.85} toneMapped={false} />
+            </mesh>
+            {active &&
+              ticks.map((t, i) => (
+                <mesh key={i} geometry={ringTickGeo} position={t.p} rotation={[0, 0, t.r]} renderOrder={31} raycast={() => null}>
+                  <meshBasicMaterial color="#ff6a13" depthTest={false} transparent toneMapped={false} />
+                </mesh>
+              ))}
+            <mesh
+              geometry={ringPickGeo}
+              userData={{ ring: a.name }}
+              onPointerOver={(e) => {
+                e.stopPropagation();
+                setHover(k);
+                gl.domElement.style.cursor = 'grab';
+              }}
+              onPointerOut={() => {
+                setHover((h) => (h === k ? null : h));
+                gl.domElement.style.cursor = 'default';
+              }}
+              onPointerDown={(e) => begin(k, e)}
+            >
+              <meshBasicMaterial transparent opacity={0} depthWrite={false} depthTest={false} />
+            </mesh>
+          </group>
+        );
+      })}
+      {drag && (
+        <Html center style={{ pointerEvents: 'none' }} position={[0, 0, 0]}>
+          <div data-testid="rotate-readout" className="whitespace-nowrap rounded-md bg-accent px-2 py-0.5 text-[12px] font-semibold text-white shadow num">
+            {RING_AXES[drag.k].name} {drag.deg > 0 ? '+' : ''}
+            {drag.deg}°{angleStep > 0 ? ` · ${angleStep}° steps` : ''}
+          </div>
+        </Html>
+      )}
+    </group>
   );
 }
 
@@ -588,6 +816,7 @@ function SelectionGizmo() {
   const tool = useCadStore((s) => s.tool);
   const pivot = useRef<Group>(null);
   const [pivotObj, setPivotObj] = useState<Group | null>(null);
+  const [moving, setMoving] = useState(false);
   const start = useRef<{ pivot: Matrix4; items: Map<string, Matrix4> } | null>(null);
   const sel = useMemo(() => instances.filter((i) => selection.includes(i.instanceId) && !i.hidden), [instances, selection]);
 
@@ -602,10 +831,12 @@ function SelectionGizmo() {
     setPivotObj(p);
   }, [sel]);
 
+  const center = useMemo(() => sel.reduce((a, i) => a.add(v3(i.position)), new Vector3()).multiplyScalar(1 / Math.max(1, sel.length)), [sel]);
   if (!sel.length || placing || tool !== 'select') return <group ref={pivot} />;
   return (
     <>
       <group ref={pivot} />
+      {mode === 'translate' && !moving && <RotationRings sel={sel} center={center} />}
       {pivotObj && (
         <TransformControls
           object={pivotObj}
@@ -616,6 +847,7 @@ function SelectionGizmo() {
           rotationSnap={angleStep > 0 ? (angleStep * Math.PI) / 180 : null}
           onMouseDown={() => {
             viewportBus.gizmoDragging = true;
+            setMoving(true);
             const p = pivot.current!;
             p.updateMatrix();
             start.current = { pivot: p.matrix.clone(), items: new Map(sel.map((i) => [i.instanceId, instanceMatrix(i)])) };
@@ -641,6 +873,7 @@ function SelectionGizmo() {
             if (st.preview) st.updateTransforms(st.preview);
             st.set({ preview: null });
             start.current = null;
+            setMoving(false);
             setTimeout(() => (viewportBus.gizmoDragging = false), 0);
           }}
         />
