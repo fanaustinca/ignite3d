@@ -8,7 +8,7 @@ import { BomModal, ExportModal, HelpModal, SettingsModal, ShareModal } from './c
 import { UploadStudio } from './components/UploadStudio';
 import { Viewport, viewportBus } from './viewport/Viewport';
 import { redo, undo, useCadStore } from './store/useCadStore';
-import { loadFullCatalog, proceduralVisual } from './services/assetLoader';
+import { loadFullCatalog, proceduralVisual, pruneMeshCache } from './services/assetLoader';
 import { worldSnaps } from './lib/snap';
 import { Group, Mesh } from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
@@ -20,8 +20,9 @@ import { loadExample } from './lib/loadExample';
 import { ensureAllSnaps } from './services/visuals';
 import { completeOnshapeLogin, loadOnshapeSettings } from './services/onshape';
 import { APP_VERSION } from './version';
+import { loadBackup, loadBuild, loadBuildSync, saveBuild } from './services/autosave';
+import type { PlacedInstance } from './types/cad';
 
-const AUTOSAVE = 'ignite3d-autosave';
 
 function useBoot() {
   useEffect(() => {
@@ -34,22 +35,30 @@ function useBoot() {
       st.toast(`Opened shared build (${fromHash.length} parts)`, 'ok');
       setTimeout(() => viewportBus.fit(), 300);
     } else {
-      try {
-        const saved = JSON.parse(localStorage.getItem(AUTOSAVE) || 'null');
-        if (saved?.instances?.length) {
-          st.setInstances(saved.instances);
-          setTimeout(() => viewportBus.fit(), 300);
-        }
-      } catch {
-        /* ignore */
+      // localStorage copy right away, then the newest of localStorage / IndexedDB
+      const quick = loadBuildSync();
+      if (quick?.instances.length) {
+        st.setInstances(quick.instances);
+        setTimeout(() => viewportBus.fit(), 300);
       }
+      const restored = useCadStore.getState().instances;
+      loadBuild().then((b) => {
+        const cur = useCadStore.getState();
+        if (!b?.instances.length || (quick && b.savedAt <= quick.savedAt)) return;
+        if (cur.instances !== restored) return; // the user already started editing
+        cur.setInstances(b.instances);
+        useCadStore.temporal.getState().clear();
+        setTimeout(() => viewportBus.fit(), 300);
+      });
     }
+    loadBackup().then((b) => b && useCadStore.getState().set({ backupBuild: b }));
     useCadStore.temporal.getState().clear();
     // 2. catalog: built-in now, remote + team + custom parts merged when they arrive
     (async () => {
       const custom = await listCustomParts();
       const res = await loadFullCatalog(useCadStore.getState().assetConfig, custom);
       useCadStore.getState().setCatalog(res.parts);
+      pruneMeshCache(new Set(res.parts.filter((p) => !p.isCustom).map((p) => p.sku))).catch(() => {});
     })();
     // 3. first visit -> quick start
     try {
@@ -64,20 +73,41 @@ function useBoot() {
     if (location.search.includes('code=')) completeOnshapeLogin(loadOnshapeSettings()).then((t) => t && st.toast('Signed in to Onshape', 'ok')).catch((e) => st.toast(String(e), 'error'));
   }, []);
 
-  // autosave (debounced)
+  // autosave: debounced while editing, flushed immediately when the tab is hidden / closed / reloaded
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | undefined;
-    return useCadStore.subscribe((s, p) => {
-      if (s.instances === p.instances) return;
+    let pending: PlacedInstance[] | null = null;
+    let warned = false;
+    const flush = () => {
       clearTimeout(t);
-      t = setTimeout(() => {
-        try {
-          localStorage.setItem(AUTOSAVE, JSON.stringify(toBuildFile(s.instances)));
-        } catch {
-          /* quota */
+      if (!pending) return;
+      const list = pending;
+      pending = null;
+      const ok = saveBuild(list);
+      ok.then((good) => {
+        useCadStore.getState().set({ savedAt: good ? Date.now() : null });
+        if (!good && !warned) {
+          warned = true;
+          useCadStore.getState().toast('Could not autosave (browser storage is full or blocked) — use Ctrl+S to download your build.', 'error');
         }
-      }, 400);
+      });
+    };
+    const unsub = useCadStore.subscribe((s, p) => {
+      if (s.instances === p.instances) return;
+      pending = s.instances;
+      clearTimeout(t);
+      t = setTimeout(flush, 300);
     });
+    const hide = () => document.visibilityState === 'hidden' && flush();
+    window.addEventListener('pagehide', flush);
+    window.addEventListener('beforeunload', flush);
+    document.addEventListener('visibilitychange', hide);
+    return () => {
+      unsub();
+      window.removeEventListener('pagehide', flush);
+      window.removeEventListener('beforeunload', flush);
+      document.removeEventListener('visibilitychange', hide);
+    };
   }, []);
 }
 

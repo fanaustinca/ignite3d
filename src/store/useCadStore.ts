@@ -54,6 +54,10 @@ interface CadState {
   modal: Modal;
   toasts: Toast[];
   lastSnapInfo: string | null;
+  /** Time of the last successful autosave (null = failed / not yet). */
+  savedAt: number | null;
+  /** A larger build that was replaced by a much smaller one (restorable from the empty-scene panel). */
+  backupBuild: { instances: PlacedInstance[]; savedAt: number } | null;
 
   setCatalog: (parts: CatalogPart[]) => void;
   updatePart: (sku: string, patch: Partial<CatalogPart>) => void;
@@ -131,6 +135,8 @@ export const useCadStore = create<CadState>()(
       modal: null,
       toasts: [],
       lastSnapInfo: null,
+      savedAt: null,
+      backupBuild: null,
 
       setCatalog: (parts) =>
         set((st) => ({

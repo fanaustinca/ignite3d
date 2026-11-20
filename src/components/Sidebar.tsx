@@ -6,6 +6,8 @@ import { requestUpgrade } from '../services/visuals';
 import { deleteCustomPart } from '../services/customParts';
 import type { AssetSource } from '../services/assetLoader';
 import { Tip } from './ui';
+import { familyOf, familyTitle, shortNames } from '../lib/partNames';
+import { useThumb } from '../services/thumbs';
 
 const STATUS: Record<AssetSource, { label: string; cls: string }> = {
   procedural: { label: 'Procedural model (no .glb in repo yet)', cls: 'bg-zinc-400' },
@@ -16,7 +18,10 @@ const STATUS: Record<AssetSource, { label: string; cls: string }> = {
   custom: { label: 'Your custom part (IndexedDB)', cls: 'bg-violet-500' },
 };
 
-function PartRow({ p }: { p: CatalogPart }) {
+type Hover = { part: CatalogPart; short: string; rect: DOMRect } | null;
+let hoverTimer: ReturnType<typeof setTimeout> | undefined;
+
+function PartRow({ p, short, onHover }: { p: CatalogPart; short: string; onHover: (h: Hover) => void }) {
   const placing = useCadStore((s) => s.placingSku === p.sku);
   const status = useCadStore((s) => s.assetStatus[p.sku]);
   const startPlacing = useCadStore((s) => s.startPlacing);
@@ -26,19 +31,26 @@ function PartRow({ p }: { p: CatalogPart }) {
       role="button"
       tabIndex={0}
       data-sku={p.sku}
-      onMouseEnter={() => requestUpgrade(p.sku)}
+      title={p.name}
+      onMouseEnter={(e) => {
+        requestUpgrade(p.sku);
+        const rect = e.currentTarget.getBoundingClientRect();
+        clearTimeout(hoverTimer);
+        hoverTimer = setTimeout(() => onHover({ part: p, short, rect }), 140);
+      }}
+      onMouseLeave={() => {
+        clearTimeout(hoverTimer);
+        onHover(null);
+      }}
       onClick={() => startPlacing(placing ? null : p.sku)}
       onKeyDown={(e) => e.key === 'Enter' && startPlacing(p.sku)}
-      className={`group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1.5 ${placing ? 'bg-accent-soft ring-1 ring-accent/50' : 'hover:bg-panel-2'}`}
+      className={`group flex cursor-pointer items-center gap-2 rounded-md px-2 py-1 ${placing ? 'bg-accent-soft ring-1 ring-accent/50' : 'hover:bg-panel-2'}`}
     >
       <span title={st.label} className={`h-1.5 w-1.5 shrink-0 rounded-full ${st.cls}`} />
-      <div className="min-w-0 flex-1">
-        <div className={`truncate text-[12.5px] ${placing ? 'text-accent font-medium' : ''}`}>{p.name}</div>
-        <div className="flex gap-2 font-mono text-[10.5px] text-muted">
-          <span>{p.sku}</span>
-          <span className="num">{p.massGrams >= 100 ? p.massGrams.toFixed(0) : p.massGrams.toFixed(1)} g</span>
-        </div>
+      <div className={`min-w-0 flex-1 truncate text-[12.5px] ${placing ? 'font-medium text-accent' : ''}`} data-testid="part-name">
+        {short}
       </div>
+      <span className="shrink-0 font-mono text-[10.5px] text-muted num">{p.massGrams >= 100 ? p.massGrams.toFixed(0) : p.massGrams.toFixed(1)} g</span>
       {p.isCustom && (
         <button
           type="button"
@@ -60,13 +72,76 @@ function PartRow({ p }: { p: CatalogPart }) {
   );
 }
 
+/** Floating card next to the hovered library row: thumbnail, full name, SKU, cost, weight. */
+function HoverCard({ h }: { h: NonNullable<Hover> }) {
+  const thumb = useThumb(h.part.sku);
+  const p = h.part;
+  const top = Math.max(8, Math.min(h.rect.top - 24, window.innerHeight - 236));
+  const d = p.dimensions;
+  return (
+    <div
+      data-testid="part-hover-card"
+      className="pointer-events-none fixed z-50 w-64 rounded-lg border border-line bg-panel p-2.5 shadow-xl"
+      style={{ left: h.rect.right + 10, top }}
+    >
+      <div className="flex gap-2.5">
+        <div className="flex h-20 w-20 shrink-0 items-center justify-center rounded-md bg-panel-2">
+          {thumb ? <img src={thumb} alt="" className="h-20 w-20 object-contain" data-testid="part-thumb" /> : <span className="text-[10px] text-muted">loading…</span>}
+        </div>
+        <div className="min-w-0 flex-1">
+          <div className="text-[12.5px] font-semibold leading-tight">{h.short}</div>
+          <div className="mt-1 font-mono text-[11px] text-accent" data-testid="hover-sku">
+            {p.sku}
+          </div>
+          <dl className="mt-1 grid grid-cols-[auto_1fr] gap-x-2 text-[11.5px] num">
+            <dt className="text-muted">Cost</dt>
+            <dd data-testid="hover-cost">
+              ${p.priceUsd.toFixed(2)}
+              {p.pack && p.pack > 1 ? <span className="text-muted"> ea · {p.pack}-pack</span> : null}
+            </dd>
+            <dt className="text-muted">Weight</dt>
+            <dd data-testid="hover-weight">
+              {p.massGrams >= 100 ? p.massGrams.toFixed(0) : p.massGrams.toFixed(1)} g · {(p.massGrams / 453.592).toFixed(p.massGrams > 45 ? 2 : 3)} lb
+            </dd>
+            {d && (
+              <>
+                <dt className="text-muted">Size</dt>
+                <dd>{d.map((x) => (x >= 10 ? x.toFixed(0) : x.toFixed(1))).join(' × ')} mm</dd>
+              </>
+            )}
+          </dl>
+        </div>
+      </div>
+      <div className="mt-2 line-clamp-2 text-[11px] leading-snug text-muted">{p.name}</div>
+    </div>
+  );
+}
+
+const OPEN_KEY = 'ignite3d-library-open';
+function loadOpen(): Record<string, boolean> {
+  try {
+    return { Structure: true, ...JSON.parse(localStorage.getItem(OPEN_KEY) || '{}') };
+  } catch {
+    return { Structure: true };
+  }
+}
+
 export function Sidebar() {
   const catalog = useCadStore((s) => s.catalog);
   const order = useCadStore((s) => s.catalogOrder);
   const status = useCadStore((s) => s.assetStatus);
   const set = useCadStore((s) => s.set);
   const [q, setQ] = useState('');
-  const [open, setOpen] = useState<Record<string, boolean>>({ Structure: true });
+  const [open, setOpenRaw] = useState<Record<string, boolean>>(loadOpen);
+  const [hover, setHover] = useState<Hover>(null);
+  const setOpen = (o: Record<string, boolean>) => {
+    setOpenRaw(o);
+    try {
+      localStorage.setItem(OPEN_KEY, JSON.stringify(o));
+    } catch {
+      /* ignore */
+    }
+  };
   const parts = useMemo(() => order.map((k) => catalog[k]).filter(Boolean), [order, catalog]);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
@@ -82,11 +157,16 @@ export function Sidebar() {
     for (const p of filtered) {
       const c = m.get(p.category) ?? new Map<string, CatalogPart[]>();
       m.set(p.category, c);
-      const s = p.series ?? p.category;
+      const s = familyOf(p);
       c.set(s, [...(c.get(s) ?? []), p]);
     }
-    return m;
-  }, [filtered]);
+    // short names are computed over the whole family (not just the search hits) so they never change
+    const names = new Map<string, string>();
+    const fam = new Map<string, CatalogPart[]>();
+    for (const p of parts) fam.set(p.category + '|' + familyOf(p), [...(fam.get(p.category + '|' + familyOf(p)) ?? []), p]);
+    for (const list of fam.values()) for (const [k, v] of shortNames(list)) names.set(k, v);
+    return { m, names };
+  }, [filtered, parts]);
   const counts = useMemo(() => {
     let real = 0;
     for (const v of Object.values(status)) if (v === 'cached' || v === 'remote' || v === 'local') real++;
@@ -116,8 +196,8 @@ export function Sidebar() {
         </button>
       </div>
       <div className="flex-1 overflow-y-auto px-2 py-2">
-        {CATEGORIES.filter((c) => byCat.has(c)).map((cat) => {
-          const series = byCat.get(cat)!;
+        {CATEGORIES.filter((c) => byCat.m.has(c)).map((cat) => {
+          const series = byCat.m.get(cat)!;
           const n = [...series.values()].reduce((a, l) => a + l.length, 0);
           const isOpen = q ? true : !!open[cat];
           return (
@@ -133,17 +213,50 @@ export function Sidebar() {
                 <span className="rounded bg-panel-2 px-1.5 text-[10.5px] font-normal text-muted num">{n}</span>
               </button>
               {isOpen &&
-                [...series].map(([name, list]) => (
-                  <div key={name} className="ml-3 mt-1 border-l border-line pl-2">
-                    <div className="px-2 pb-0.5 pt-1 text-[10.5px] font-medium uppercase tracking-wide text-muted">{name}</div>
-                    {list.map((p) => (
-                      <PartRow key={p.sku} p={p} />
-                    ))}
-                  </div>
-                ))}
+                [...series].map(([name, list]) => {
+                  if (list.length === 1) {
+                    // a family of one: no sub-section, just the part with its family name
+                    const p = list[0];
+                    const sn = byCat.names.get(p.sku) ?? '';
+                    const title = familyTitle(name);
+                    const label = !sn || title.includes(sn) || sn.includes(title) ? (sn.length > title.length ? sn : title) : `${title} · ${sn}`;
+                    return (
+                      <div key={name} className="ml-3 border-l border-line pl-1.5">
+                        <PartRow p={p} short={label} onHover={setHover} />
+                      </div>
+                    );
+                  }
+                  const fk = `${cat}/${name}`;
+                  const fOpen = q ? true : series.size === 1 ? open[fk] !== false : !!open[fk];
+                  return (
+                    <div key={name} className="ml-3 border-l border-line pl-1.5" data-family={name}>
+                      <button
+                        type="button"
+                        data-testid="family-toggle"
+                        className="flex w-full items-center gap-1 rounded px-1.5 py-1 text-left text-[11.5px] font-medium text-ink/85 hover:bg-panel-2"
+                        onClick={() => setOpen({ ...open, [fk]: !fOpen })}
+                        aria-expanded={fOpen}
+                      >
+                        <ChevronRight size={12} className={`shrink-0 text-muted transition-transform ${fOpen ? 'rotate-90' : ''}`} />
+                        <span className="min-w-0 flex-1 truncate" title={name}>
+                          {familyTitle(name)}
+                        </span>
+                        <span className="text-[10px] font-normal text-muted num">{list.length}</span>
+                      </button>
+                      {fOpen && (
+                        <div className="pb-1 pl-2">
+                          {list.map((p) => (
+                            <PartRow key={p.sku} p={p} short={byCat.names.get(p.sku) ?? p.name} onHover={setHover} />
+                          ))}
+                        </div>
+                      )}
+                    </div>
+                  );
+                })}
             </div>
           );
         })}
+        {hover && <HoverCard h={hover} />}
         {!filtered.length && <div className="p-4 text-center text-[12.5px] text-muted">No parts match “{q}”.</div>}
       </div>
       <div className="flex items-center gap-3 border-t border-line px-3 py-2 text-[11px] text-muted">

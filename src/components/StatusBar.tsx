@@ -42,6 +42,11 @@ export function StatusBar() {
       <div className="num whitespace-nowrap" data-testid="mass-readout">
         {m.count} parts · {(m.grams / 1000).toFixed(2)} kg ({m.lbs.toFixed(2)} lb) · ${m.priceUsd.toFixed(0)}
       </div>
+      {st.instances.length > 0 && (
+        <div className="whitespace-nowrap" data-testid="save-state" title="Your build is saved in this browser automatically">
+          {st.savedAt ? <span className="text-green-600 dark:text-green-400">● Saved</span> : <span>○ Saving…</span>}
+        </div>
+      )}
       <div className="whitespace-nowrap border-l border-line pl-3" data-testid="credit">
         <span className="font-medium text-accent">{TEAM_CREDIT}</span> · v{APP_VERSION}
       </div>

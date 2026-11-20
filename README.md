@@ -35,6 +35,12 @@
   containing **goBILDA's exact B-rep geometry** for each part (fetched on demand from the
   [ignite3d-cad](https://github.com/fanaustinca/ignite3d-cad) data site), so Onshape gets the real parts. Also STL, GLB
   and a JSON manifest with every occurrence's `/occurrencetransforms` matrix.
+- **Parts library** grouped by category → series sub-sections (open/close, remembered), short names that only
+  show what differs ("19.2:1 · 312 RPM", "5 Hole · 144 mm"), and a hover card with a rendered thumbnail, SKU,
+  price and weight. Yellow Jacket motors are coloured from their real sub-parts (yellow sleeve, black encoder
+  cap, dark gearbox, steel shaft).
+- **Autosave** to IndexedDB + localStorage on every change and on reload/close, with a "Saved" indicator; if a
+  big build is cleared, the empty scene offers to restore it.
 - **BOM** with CSV download, **share links** (`#build=…`, compressed in the URL), undo/redo, grouping,
   mirroring (mecanum L↔R swap), hide / x-ray, autosave, light & dark themes.
 - **Custom parts:** upload `.glb`/`.stl`, click to tag holes (auto-centres on round holes, detects

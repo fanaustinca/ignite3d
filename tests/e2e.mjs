@@ -101,6 +101,17 @@ function assert(c, msg) {
   if (!c) throw new Error(msg);
 }
 const st = (fn, ...a) => page.evaluate(fn, ...a);
+/** Click a part in the library (sub-sections start closed, so find it through search). */
+async function clickPart(sku) {
+  await page.click('[data-testid="catalog-search"]', { clickCount: 3 });
+  await page.type('[data-testid="catalog-search"]', sku);
+  await page.waitForSelector(`[data-sku="${sku}"]`);
+  await page.click(`[data-sku="${sku}"]`);
+  await page.click('[data-testid="catalog-search"]', { clickCount: 3 });
+  await page.keyboard.press('Backspace');
+  await page.evaluate(() => document.activeElement && document.activeElement.blur());
+  await page.mouse.move(800, 450);
+}
 const shot = (n) => page.screenshot({ path: join(SHOTS, `${n}.png`) });
 async function waitFile(re, ms = 20000) {
   const t0 = Date.now();
@@ -168,7 +179,7 @@ await test('catalog has the full goBILDA seed set and search works', async () =>
 });
 
 await test('places the first channel on the floor grid with a real mouse click', async () => {
-  await page.click('[data-sku="1120-0005-0144"]');
+  await clickPart('1120-0005-0144');
   await st(() => window.__ignite.setView([0, 520, 520], [0, 0, 0]));
   await clickWorld([3, 0, -2]);
   const inst = await st(() => window.__ignite.store.getState().instances);
@@ -184,7 +195,7 @@ await test('snaps a second channel hole-to-hole and every overlapping hole lines
   A = await st(() => window.__ignite.store.getState().instances[0]);
   // look at the +Z wall from the side
   await st((a) => window.__ignite.setView([a.position[0] + 60, 160, 520], [a.position[0], 30, 0]), A);
-  await page.click('[data-sku="1120-0003-0096"]');
+  await clickPart('1120-0003-0096');
   const wall = (await st((id) => window.__ignite.worldSnaps(id), A.instanceId)).find(
     (s) => s.type === 'm4_hole' && s.normal[2] > 0.99 && Math.abs(s.pos[2] - 24) < 1e-6 && Math.abs(s.pos[0] - (A.position[0] + 8)) < 1e-6 && Math.abs(s.pos[1] - 32) < 1e-6,
   );
@@ -294,7 +305,7 @@ await test('S toggles hole snapping; OFF = free placement on the grid', async ()
   assert((await st(() => window.__ignite.store.getState().snapEnabled)) === false, 'snap off');
   const label = await page.$eval('[data-testid="snap-toggle"]', (e) => e.textContent);
   assert(label.includes('OFF'), label);
-  await page.click('[data-sku="1120-0001-0048"]');
+  await clickPart('1120-0001-0048');
   await st(() => window.__ignite.setView([0, 520, 520], [0, 0, 0]));
   await hoverWorld([200, 0, 200]);
   const g = await st(() => window.__ignite.ghost());
@@ -587,6 +598,54 @@ await test('real goBILDA meshes load from the site, and fall back to the GitHub 
   await p3.close();
   fixtureGlb = null;
   blockLocal = null;
+});
+
+await test('part library: sub-sections open/close, short names, hover card with picture, SKU, cost, weight', async () => {
+  await page.keyboard.press('Escape');
+  for (const b of await page.$$('aside button')) if (/^Motors & Servos/.test((await b.evaluate((e) => e.textContent)).trim())) await b.click();
+  await sleep(200);
+  let fam = null;
+  for (const b of await page.$$('[data-testid="family-toggle"]')) if ((await b.evaluate((e) => e.textContent)).includes('5203 Yellow Jacket Planetary')) fam = b;
+  assert(fam, 'motor sub-section');
+  assert((await fam.evaluate((e) => e.getAttribute('aria-expanded'))) === 'false', 'sub-sections start closed');
+  await fam.click();
+  await sleep(200);
+  const row = await page.$('[data-sku="5203-2402-0019"]');
+  const label = await row.$eval('[data-testid="part-name"]', (e) => e.textContent);
+  assert(label === '19.2:1 · 312 RPM', 'short name: ' + label);
+  await row.hover();
+  await page.waitForSelector('[data-testid="part-thumb"]', { timeout: 15000 });
+  const card = await page.$eval('[data-testid="part-hover-card"]', (e) => e.innerText);
+  assert(card.includes('5203-2402-0019') && /\$\d+\.\d\d/.test(card) && /\d+ g/.test(card), card);
+  await shot('21-library-hover');
+  await page.mouse.move(800, 400);
+  await sleep(200);
+  assert(!(await page.$('[data-testid="part-hover-card"]')), 'card hides');
+  await fam.click();
+  await sleep(100);
+  assert((await fam.evaluate((e) => e.getAttribute('aria-expanded'))) === 'false', 'closes again');
+});
+
+await test('autosave: the build survives a reload', async () => {
+  await st(() => window.__ignite.loadExample());
+  await sleep(800);
+  const before = await st(() => window.__ignite.store.getState().instances.length);
+  assert(before > 10, 'have a build');
+  await page.waitForFunction(() => document.querySelector('[data-testid="save-state"]')?.textContent.includes('Saved'), { timeout: 5000 });
+  await page.reload({ waitUntil: 'networkidle2' });
+  await page.waitForFunction(() => window.__ignite);
+  await sleep(1500);
+  const after = await st(() => window.__ignite.store.getState().instances.length);
+  assert(after === before, `restored ${after} of ${before}`);
+  // clearing then reloading still offers the old build back
+  await st(() => window.__ignite.store.getState().clearScene());
+  await sleep(600);
+  await page.reload({ waitUntil: 'networkidle2' });
+  await page.waitForFunction(() => window.__ignite);
+  await page.keyboard.press('Escape');
+  await page.waitForSelector('[data-testid="restore-backup"]', { timeout: 5000 });
+  await page.click('[data-testid="restore-backup"]');
+  assert((await st(() => window.__ignite.store.getState().instances.length)) === before, 'backup restored');
 });
 
 await test('no uncaught errors in the page', async () => {

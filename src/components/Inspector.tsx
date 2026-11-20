@@ -101,6 +101,20 @@ function RobotSummary() {
             Load example drivetrain
           </Btn>
         )}
+        {instances.length < (st.backupBuild?.instances.length ?? 0) / 2 && st.backupBuild && (
+          <Btn
+            data-testid="restore-backup"
+            className="mt-2 w-full justify-center"
+            onClick={() => {
+              const b = st.backupBuild!;
+              st.setInstances(b.instances);
+              st.toast(`Restored your earlier build (${b.instances.length} parts) — Ctrl+Z to undo`, 'ok');
+              setTimeout(() => viewportBus.fit(), 50);
+            }}
+          >
+            Restore earlier build ({st.backupBuild.instances.length} parts · {new Date(st.backupBuild.savedAt).toLocaleString([], { month: 'short', day: 'numeric', hour: 'numeric', minute: '2-digit' })})
+          </Btn>
+        )}
       </Section>
     </>
   );

@@ -6,7 +6,7 @@ import { GLTFLoader } from 'three/examples/jsm/loaders/GLTFLoader.js';
 import { DRACOLoader } from 'three/examples/jsm/loaders/DRACOLoader.js';
 import type { CatalogPart, SnapPoint } from '../types/cad';
 import { type AssetConfig, type RepoRef, DEFAULT_CAD_REPO, cdnBase, dracoBase, localBase } from '../config/assets';
-import { cacheGet, cacheSet } from './cache';
+import { cacheDel, cacheGet, cacheKeys, cacheSet } from './cache';
 import { triangulateRecipe } from '../geometry/recipe';
 import { BUILTIN_CATALOG, BUILTIN_CATALOG_VERSION } from '../data/catalog';
 
@@ -74,8 +74,8 @@ export async function fetchRepoCatalog(repo: RepoRef, cfg: AssetConfig): Promise
   const key = `catalog-${url}`;
   const cached = await cacheGet<{ etag?: string; data: CatalogFile }>(key);
   try {
-    const res = await fetchWithTimeout(url, cfg.fetchTimeoutMs, cached?.etag ? { headers: { 'If-None-Match': cached.etag } } : undefined);
-    if (res.status === 304 && cached) return cached.data;
+    // plain GET with HTTP revalidation: a custom If-None-Match header triggers a CORS preflight jsDelivr rejects
+    const res = await fetchWithTimeout(url, cfg.fetchTimeoutMs, { cache: 'no-cache' });
     if (res.ok) {
       const data = (await res.json()) as CatalogFile;
       if (Array.isArray(data?.parts)) {
@@ -239,12 +239,24 @@ export function forgetVisual(sku: string) {
  * Try to upgrade a part to its real .glb. Resolves to the visual (or null if none exists).
  * Never throws; procedural stays in place on any failure.
  */
+/** Bump when shipped meshes change (v2: coloured motors) so browsers drop their cached copies. */
+const MESH_REV = 2;
+const meshCacheKey = (part: CatalogPart) => (part.isCustom ? `part-mesh-${part.sku}` : `part-mesh-v${MESH_REV}-${part.sku}`);
+
+/** Remove cached meshes of shipped parts from older mesh revisions (custom parts are never touched). */
+export async function pruneMeshCache(shipped: Set<string>) {
+  for (const k of await cacheKeys()) {
+    const m = /^part-mesh-(?:v(\d+)-)?(.+)$/.exec(k);
+    if (m && shipped.has(m[2]) && Number(m[1] ?? 1) < MESH_REV) await cacheDel(k);
+  }
+}
+
 export function fetchGlbVisual(part: CatalogPart, cfg: AssetConfig, repo: RepoRef = cfg.primary): Promise<PartVisual | null> {
   const sku = part.sku;
   const existing = inflight.get(sku);
   if (existing) return existing;
   const p = (async () => {
-    const key = `part-mesh-${sku}`;
+    const key = meshCacheKey(part);
     const cached = await cacheGet<ArrayBuffer>(key);
     if (cached) {
       try {
