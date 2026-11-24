@@ -4,7 +4,8 @@ import numpy as np
 from .lib import unit
 
 MULTI = ('3213-', '3625-', '3624-')
-PREFIXES = ['3213-', '3625-', '3601-', '3612-', '3614-', '3619-', '3613-', '3632-', '3624-', '3210-']
+PREFIXES = ['3213-', '3625-', '3601-', '3612-', '3614-', '3619-', '3613-', '3632-', '3624-', '3210-',
+            '3600-', '3604-', '3607-', '3615-', '3618-', '3626-', '3627-', '3629-', '3635-']
 WHEEL_BORES = (4.0, 7.0, 16.0)
 
 def _axis_of_wheel(ctx):
@@ -44,10 +45,28 @@ def rule(ctx):
         c = np.array(ctx['centroid'], float)
     elif segs:
         big = max(segs, key=lambda h: h['len'])
+        if sku.startswith(('3615-', '3618-', '3627-', '3629-')):   # flaps can carry r=4 holes too: take the one on the axis
+            cen = np.array(ctx['centroid'], float)
+            big = min(segs, key=lambda h: np.linalg.norm(np.delete(np.array(h['c0'], float) - cen, k)))
+            if np.linalg.norm(np.delete(np.array(big['c0'], float) - cen, k)) > 2.0: segs = []   # no hole on the axis
         p = np.array(big['c0'], float)
-        for i in rest: c[i] = p[i]
+        for i in rest: c[i] = p[i] if segs else c[i]
+    if sku.startswith(('3615-', '3618-', '3627-', '3629-')) and 'REX' in ctx.get('title', '') and not any(abs(h['r'] - 4.0) < 0.15 for h in segs):
+        # REX bores are planar hex facets (no cylinder to detect): centre the axle on the bore found on the mesh
+        import os, sys
+        D = os.path.dirname(os.path.dirname(os.path.abspath(__file__)))
+        if D not in sys.path: sys.path.insert(0, D)
+        from extract import load, tessellate
+        from mount_bores import find_near
+        P, _ = tessellate(load(os.path.join(D, 'step', f'{sku}.STEP')))
+        o = [i for i in range(3) if i != k]
+        cen = np.array(ctx['centroid'], float)
+        f = find_near(P.astype(float), k, [cen[o[0]], cen[o[1]]])
+        if f:
+            c[o[0]], c[o[1]] = f[1][0], f[1][1]
+            note_rex = f'; axle centred on the REX bore (mesh, clearance r {f[2]:.2f})'
     t = -R @ c
-    note = 'wheel: axle along X'
+    note = 'wheel: axle along X' + (locals().get('note_rex') or '')
     if sku.startswith(('3213-', '3625-')):
         note += '; single mecanum wheel (STEP is one wheel, not a set of 4); centred on volume centroid'
     return {'R': R.tolist(), 't': t.tolist(), 'male': [], 'notes': note}

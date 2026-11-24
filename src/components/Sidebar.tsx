@@ -1,5 +1,5 @@
 import { useMemo, useState } from 'react';
-import { ChevronRight, Cloud, HardDrive, Plus, Search, Shapes, Sparkles, Trash2 } from 'lucide-react';
+import { ChevronRight, Cloud, HardDrive, Package, Plus, Search, Shapes, Sparkles, Trash2, X } from 'lucide-react';
 import { useCadStore } from '../store/useCadStore';
 import { CATEGORIES, type CatalogPart, type Category } from '../types/cad';
 import { requestUpgrade } from '../services/visuals';
@@ -8,6 +8,16 @@ import type { AssetSource } from '../services/assetLoader';
 import { Tip } from './ui';
 import { familyOf, familyTitle, shortNames } from '../lib/partNames';
 import { useThumb } from '../services/thumbs';
+import kitsData from '../data/kits.json';
+
+/** goBILDA kits / bundles and the catalogue parts they contain (qty = pieces), from the kit pages' bills of materials. */
+export interface Kit {
+  sku: string;
+  name: string;
+  items: Record<string, number>;
+  missing: { sku: string; name: string }[];
+}
+export const KITS = kitsData as unknown as Kit[];
 
 const STATUS: Record<AssetSource, { label: string; cls: string }> = {
   procedural: { label: 'Procedural model (no .glb in repo yet)', cls: 'bg-zinc-400' },
@@ -21,7 +31,7 @@ const STATUS: Record<AssetSource, { label: string; cls: string }> = {
 type Hover = { part: CatalogPart; short: string; rect: DOMRect } | null;
 let hoverTimer: ReturnType<typeof setTimeout> | undefined;
 
-function PartRow({ p, short, onHover }: { p: CatalogPart; short: string; onHover: (h: Hover) => void }) {
+function PartRow({ p, short, onHover, qty }: { p: CatalogPart; short: string; onHover: (h: Hover) => void; qty?: number }) {
   const placing = useCadStore((s) => s.placingSku === p.sku);
   const status = useCadStore((s) => s.assetStatus[p.sku]);
   const startPlacing = useCadStore((s) => s.startPlacing);
@@ -50,6 +60,11 @@ function PartRow({ p, short, onHover }: { p: CatalogPart; short: string; onHover
       <div className={`min-w-0 flex-1 truncate text-[12.5px] ${placing ? 'font-medium text-accent' : ''}`} data-testid="part-name">
         {short}
       </div>
+      {qty ? (
+        <span data-testid="kit-qty" className="shrink-0 rounded bg-accent-soft px-1 font-mono text-[10.5px] text-accent num">
+          ×{qty}
+        </span>
+      ) : null}
       <span className="shrink-0 font-mono text-[10.5px] text-muted num">{p.massGrams >= 100 ? p.massGrams.toFixed(0) : p.massGrams.toFixed(1)} g</span>
       {p.isCustom && (
         <button
@@ -132,6 +147,8 @@ export function Sidebar() {
   const status = useCadStore((s) => s.assetStatus);
   const set = useCadStore((s) => s.set);
   const [q, setQ] = useState('');
+  const [kitSku, setKitSku] = useState('');
+  const kit = KITS.find((k) => k.sku === kitSku);
   const [open, setOpenRaw] = useState<Record<string, boolean>>(loadOpen);
   const [hover, setHover] = useState<Hover>(null);
   const setOpen = (o: Record<string, boolean>) => {
@@ -145,13 +162,14 @@ export function Sidebar() {
   const parts = useMemo(() => order.map((k) => catalog[k]).filter(Boolean), [order, catalog]);
   const filtered = useMemo(() => {
     const t = q.trim().toLowerCase();
-    if (!t) return parts;
+    const inKit = kit ? parts.filter((p) => kit.items[p.sku]) : parts;
+    if (!t) return inKit;
     const words = t.split(/\s+/);
-    return parts.filter((p) => {
+    return inKit.filter((p) => {
       const hay = `${p.name} ${p.sku} ${p.series ?? ''} ${p.category} ${(p.tags ?? []).join(' ')}`.toLowerCase();
       return words.every((w) => hay.includes(w));
     });
-  }, [parts, q]);
+  }, [parts, q, kit]);
   const byCat = useMemo(() => {
     const m = new Map<Category, Map<string, CatalogPart[]>>();
     for (const p of filtered) {
@@ -186,6 +204,38 @@ export function Sidebar() {
             onChange={(e) => setQ(e.target.value)}
           />
         </div>
+        <div className="relative mt-2">
+          <Package size={14} className="pointer-events-none absolute left-2.5 top-1/2 -translate-y-1/2 text-muted" />
+          <select
+            data-testid="kit-select"
+            aria-label="Show the parts of a goBILDA kit"
+            className={`field w-full appearance-none pl-8 pr-7 text-[12.5px] ${kit ? 'text-accent' : 'text-muted'}`}
+            value={kitSku}
+            onChange={(e) => setKitSku(e.target.value)}
+          >
+            <option value="">All parts (no kit filter)</option>
+            {KITS.map((k) => (
+              <option key={k.sku} value={k.sku}>
+                {k.name}
+              </option>
+            ))}
+          </select>
+          {kit && (
+            <button type="button" aria-label="Clear kit filter" className="absolute right-1.5 top-1/2 -translate-y-1/2 rounded p-0.5 text-muted hover:text-ink" onClick={() => setKitSku('')}>
+              <X size={13} />
+            </button>
+          )}
+        </div>
+        {kit && (
+          <div data-testid="kit-summary" className="mt-1.5 text-[11px] leading-snug text-muted">
+            <span className="num">{Object.values(kit.items).reduce((a, b) => a + b, 0)}</span> pieces · <span className="num">{Object.keys(kit.items).length}</span> part types
+            {kit.missing.length > 0 && (
+              <span className="ml-1 cursor-help underline decoration-dotted" title={'Not modelled (electronics, wiring, belts, chain, tools…):\n' + kit.missing.map((m) => `${m.sku}  ${m.name}`).join('\n')}>
+                +{kit.missing.length} non-CAD items
+              </span>
+            )}
+          </div>
+        )}
         <button
           type="button"
           data-testid="open-upload"
@@ -199,7 +249,7 @@ export function Sidebar() {
         {CATEGORIES.filter((c) => byCat.m.has(c)).map((cat) => {
           const series = byCat.m.get(cat)!;
           const n = [...series.values()].reduce((a, l) => a + l.length, 0);
-          const isOpen = q ? true : !!open[cat];
+          const isOpen = q || kit ? true : !!open[cat];
           return (
             <div key={cat} className="mb-1">
               <button
@@ -222,12 +272,12 @@ export function Sidebar() {
                     const label = !sn || title.includes(sn) || sn.includes(title) ? (sn.length > title.length ? sn : title) : `${title} · ${sn}`;
                     return (
                       <div key={name} className="ml-3 border-l border-line pl-1.5">
-                        <PartRow p={p} short={label} onHover={setHover} />
+                        <PartRow p={p} short={label} onHover={setHover} qty={kit?.items[p.sku]} />
                       </div>
                     );
                   }
                   const fk = `${cat}/${name}`;
-                  const fOpen = q ? true : series.size === 1 ? open[fk] !== false : !!open[fk];
+                  const fOpen = q || kit ? true : series.size === 1 ? open[fk] !== false : !!open[fk];
                   return (
                     <div key={name} className="ml-3 border-l border-line pl-1.5" data-family={name}>
                       <button
@@ -246,7 +296,7 @@ export function Sidebar() {
                       {fOpen && (
                         <div className="pb-1 pl-2">
                           {list.map((p) => (
-                            <PartRow key={p.sku} p={p} short={byCat.names.get(p.sku) ?? p.name} onHover={setHover} />
+                            <PartRow key={p.sku} p={p} short={byCat.names.get(p.sku) ?? p.name} onHover={setHover} qty={kit?.items[p.sku]} />
                           ))}
                         </div>
                       )}
@@ -257,7 +307,7 @@ export function Sidebar() {
           );
         })}
         {hover && <HoverCard h={hover} />}
-        {!filtered.length && <div className="p-4 text-center text-[12.5px] text-muted">No parts match “{q}”.</div>}
+        {!filtered.length && <div className="p-4 text-center text-[12.5px] text-muted">{q ? `No parts match “${q}”${kit ? ' in this kit' : ''}.` : 'No parts.'}</div>}
       </div>
       <div className="flex items-center gap-3 border-t border-line px-3 py-2 text-[11px] text-muted">
         <Tip label="Parts with real .glb meshes (CDN or cache)" side="top">

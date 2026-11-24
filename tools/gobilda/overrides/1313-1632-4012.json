@@ -1,0 +1,379 @@
+{
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h3b",
+  "h4b",
+  "h5a",
+  "h5b",
+  "h6a",
+  "h6b",
+  "h9a",
+  "h9b",
+  "h10a",
+  "h10b",
+  "h11a",
+  "h11b",
+  "h12a",
+  "h12b",
+  "h13a",
+  "h13b",
+  "h14a",
+  "h14b",
+  "h15a",
+  "h15b",
+  "h16a",
+  "h16b",
+  "h19a",
+  "h19b",
+  "h20a",
+  "h20b",
+  "h21a",
+  "h23a",
+  "h23b",
+  "h24a",
+  "h24b",
+  "h25a",
+  "h25b",
+  "h26a",
+  "h26b",
+  "h29a",
+  "h29b",
+  "h30a",
+  "h31b",
+  "h32a",
+  "h32b"
+ ],
+ "addSnaps": [
+  {
+   "id": "mh0a",
+   "type": "m4_hole",
+   "p": [
+    15.9971,
+    -8.95,
+    16.0012
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h0",
+   "full": true
+  },
+  {
+   "id": "mh0b",
+   "type": "m4_hole",
+   "p": [
+    15.9971,
+    -3.05,
+    16.0012
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h0",
+   "full": true
+  },
+  {
+   "id": "mh1a",
+   "type": "m4_hole",
+   "p": [
+    15.9971,
+    -8.95,
+    -15.9988
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h1",
+   "full": true
+  },
+  {
+   "id": "mh1b",
+   "type": "m4_hole",
+   "p": [
+    15.9971,
+    -3.05,
+    -15.9988
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h1",
+   "full": true
+  },
+  {
+   "id": "mh2a",
+   "type": "m4_hole",
+   "p": [
+    -16.0029,
+    -8.95,
+    16.0012
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h2",
+   "full": true
+  },
+  {
+   "id": "mh2b",
+   "type": "m4_hole",
+   "p": [
+    -16.0029,
+    -3.05,
+    16.0012
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h2",
+   "full": true
+  },
+  {
+   "id": "mh3a",
+   "type": "m4_hole",
+   "p": [
+    -16.0029,
+    -8.95,
+    -15.9988
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h3",
+   "full": true
+  },
+  {
+   "id": "mh3b",
+   "type": "m4_hole",
+   "p": [
+    -16.0029,
+    -3.05,
+    -15.9988
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 5.9,
+   "tapped": true,
+   "holeId": "h3",
+   "full": true
+  },
+  {
+   "id": "mh32b",
+   "type": "m4_hole",
+   "p": [
+    11.3035,
+    6.0967,
+    8.0012
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 2.44,
+   "tapped": true,
+   "holeId": "h32",
+   "full": false
+  },
+  {
+   "id": "mh10a",
+   "type": "hub_pattern_16mm",
+   "p": [
+    -8.0029,
+    -8.95,
+    8.0012
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h10",
+   "full": true
+  },
+  {
+   "id": "mh9b",
+   "type": "hub_pattern_16mm",
+   "p": [
+    -8.0029,
+    1.5086,
+    8.0012
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h9",
+   "full": true
+  },
+  {
+   "id": "mh12a",
+   "type": "hub_pattern_16mm",
+   "p": [
+    -8.0029,
+    -8.95,
+    -7.9988
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h12",
+   "full": true
+  },
+  {
+   "id": "mh11b",
+   "type": "hub_pattern_16mm",
+   "p": [
+    -8.0029,
+    1.5086,
+    -7.9988
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h11",
+   "full": true
+  },
+  {
+   "id": "mh14a",
+   "type": "hub_pattern_16mm",
+   "p": [
+    7.9971,
+    -8.95,
+    8.0012
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h14",
+   "full": true
+  },
+  {
+   "id": "mh13b",
+   "type": "hub_pattern_16mm",
+   "p": [
+    7.9971,
+    1.5086,
+    8.0012
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h13",
+   "full": true
+  },
+  {
+   "id": "mh16a",
+   "type": "hub_pattern_16mm",
+   "p": [
+    7.9971,
+    -8.95,
+    -7.9988
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h16",
+   "full": true
+  },
+  {
+   "id": "mh15b",
+   "type": "hub_pattern_16mm",
+   "p": [
+    7.9971,
+    1.5086,
+    -7.9988
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 10.459,
+   "tapped": true,
+   "holeId": "h15",
+   "full": true
+  },
+  {
+   "id": "mh29a",
+   "type": "m4_hole",
+   "p": [
+    -11.3036,
+    6.0967,
+    -7.9988
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 2.44,
+   "tapped": true,
+   "holeId": "h29",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -11.00..11.00"
+}

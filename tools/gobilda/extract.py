@@ -30,12 +30,32 @@ from OCC.Core.BRepBndLib import brepbndlib
 def to_yup(p):  # STEP Z-up -> Y-up
     return np.array([p[0], p[2], -p[1]], dtype=float)
 
+# goBILDA STEPs that ship the part as a loose kit (hardware lying next to it, not assembled): keep only the solids that
+# touch the main (largest) body so the library part is the part itself
+LOOSE_HW = ('1802-0043-0001',)
+
 def load(path):
     r = STEPControl_Reader()
     if r.ReadFile(path) != 1:
         raise RuntimeError('read failed')
     r.TransferRoots()
-    return r.OneShape()
+    shape = r.OneShape()
+    import os
+    if os.path.basename(path).rsplit('.', 1)[0] in LOOSE_HW:
+        from OCC.Core.TopoDS import TopoDS_Compound
+        from OCC.Core.BRep import BRep_Builder
+        sol = solids(shape)
+        vol = []
+        for s_ in sol:
+            g = GProp_GProps(); brepgprop.VolumeProperties(s_, g); vol.append(g.Mass())
+        main = sol[max(range(len(sol)), key=lambda i: vol[i])]
+        mb = Bnd_Box(); brepbndlib.Add(main, mb); mb.Enlarge(0.3)
+        c = TopoDS_Compound(); B = BRep_Builder(); B.MakeCompound(c)
+        for s_ in sol:
+            b = Bnd_Box(); brepbndlib.Add(s_, b)
+            if s_ is main or not mb.IsOut(b): B.Add(c, s_)
+        shape = c
+    return shape
 
 def solids(shape):
     out = []

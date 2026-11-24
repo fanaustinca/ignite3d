@@ -1,0 +1,27 @@
+{
+ "removeSnapIds": [],
+ "addSnaps": [],
+ "male": [
+  {
+   "id": "tip",
+   "type": "rex_8mm",
+   "position": [
+    0.0,
+    19.0,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "upVector": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "male": true
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -19.00..19.00"
+}

@@ -1,0 +1,1 @@
+{"sku":"1601-0014-0004","snapPoints":[{"id":"borea","type":"m4_hole","position":[0.0,-4.05,0.0],"normal":[0.0,-1,0.0],"depth":5.0,"holeId":"bore"},{"id":"boreb","type":"m4_hole","position":[0.0,0.95,0.0],"normal":[0.0,1,0.0],"depth":5.0,"holeId":"bore"},{"id":"barrel","type":"bearing_14mm","position":[0.0,0.0,0.0],"normal":[0.0,-1.0,0.0],"male":true,"upVector":[1.0,0.0,0.0]}]}

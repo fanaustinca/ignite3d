@@ -1,0 +1,91 @@
+{
+ "removeSnapIds": [
+  "h78a",
+  "h79b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    0.86604,
+    0.0,
+    -0.49997
+   ],
+   "id": "borea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    -5.5625,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 11.125,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    0.86604,
+    0.0,
+    -0.49997
+   ],
+   "id": "boreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    5.5625,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 11.125,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh78a",
+   "type": "m4_hole",
+   "p": [
+    6.5006,
+    -0.1844,
+    9.35
+   ],
+   "n": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "depth": 0.152,
+   "tapped": true,
+   "holeId": "h78",
+   "full": true
+  },
+  {
+   "id": "mh79b",
+   "type": "m4_hole",
+   "p": [
+    -6.4994,
+    -0.1844,
+    -9.35
+   ],
+   "n": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "depth": 0.152,
+   "tapped": true,
+   "holeId": "h79",
+   "full": true
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore rex_8mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -5.56..5.56"
+}

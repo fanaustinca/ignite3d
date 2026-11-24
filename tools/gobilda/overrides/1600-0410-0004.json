@@ -1,0 +1,53 @@
+{
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h3b",
+  "h4a",
+  "h4b"
+ ],
+ "addSnaps": [
+  {
+   "id": "borea",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 4.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "boreb",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 4.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore m4_hole added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -2.00..2.00"
+}

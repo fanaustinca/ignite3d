@@ -10,6 +10,7 @@ import { fastenOptions, planFastenAt, planJointFasteners } from '../store/useCad
 import { bestAlignment, occupiedFaces } from './placement';
 import { buildExampleRobot } from './example';
 import { robotBounds, sizeCheck } from './metrics';
+import kits from '../data/kits.json';
 
 const PARTS = 'public/parts';
 const real = USING_REAL_CATALOG && existsSync(`${PARTS}/1120-0005-0144.json`);
@@ -155,5 +156,31 @@ describe.skipIf(!real)('real goBILDA parts', () => {
       expect(f, `screw ${sc.sku} head on a hole face`).toBeDefined();
       expect(occ.has(f!), `screw ${sc.sku} head not buried`).toBe(false);
     }
+  });
+});
+
+describe.skipIf(!real)('kit coverage (goBILDA kit bills of materials)', () => {
+  const K = kits as unknown as { sku: string; name: string; items: Record<string, number>; missing: { sku: string; name: string }[] }[];
+  it('has the requested series: hub-shaft, 8 mm ID x 10 mm OD spacers, 2920 set-screw collars', () => {
+    for (const sku of ['2110-0608-0002', '1522-0010-0090', '1522-0010-0120', '2920-0001-4008', '1522-0010-0020', '2920-0001-0006', '2920-0001-0008'])
+      expect(cat[sku]?.snapPoints.length, sku).toBeGreaterThan(0);
+  });
+  it('contains every rigid part of the Strafer, FTC Starter Kit and U-channel bundles', () => {
+    for (const name of ['Strafer', 'FTC Starter Kit (', '1120 Series U-Channel Bundle', 'BeeLine']) {
+      const k = K.find((x) => x.name.startsWith(name));
+      expect(k, name).toBeTruthy();
+      for (const sku of Object.keys(k!.items)) expect(cat[sku], `${name}: ${sku}`).toBeTruthy();
+      // anything left out must be non-CAD (electronics, wiring, belts, chain, tools, gearbox internals, zip ties) or have no goBILDA STEP (3705)
+      for (const m of k!.missing) expect(m.sku, `${name}: ${m.sku} ${m.name}`).toMatch(/^(31|38|42|5105|5027|3308|3309|3412|3423|3426|2909-|3705-)/);
+    }
+  });
+  it('hub-shaft: REX shoulder seats flush on a bearing face, hub face takes the 16 mm wheel pattern', () => {
+    const hs = cat['2110-0608-0002'];
+    const shoulder = hs.snapPoints.find((s) => s.male && s.type === 'rex_8mm')!;
+    expect(shoulder.position).toEqual([0, 0, 0]);
+    expect(shoulder.normal).toEqual([0, -1, 0]);
+    const pat = hs.snapPoints.filter((s) => s.type === 'hub_pattern_16mm' && s.normal[1] > 0.99);
+    expect(pat.length).toBe(4);
+    for (const s of pat) expect(s.position[1]).toBeCloseTo(20, 3); // 20 mm hub offset from the shoulder
   });
 });

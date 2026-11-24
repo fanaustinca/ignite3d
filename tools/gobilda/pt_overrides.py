@@ -4,12 +4,12 @@ Why: the detector (register.snaps_from_holes) (a) emits seam-split / thread-step
 (they are planar faceted in the real STEP: no cylinder faces), (c) mistypes e-clip grooves as rex_8mm, (d) cannot know hub threads.
 This script normalises per family: one snap per hole face (outermost), merged depth, bore snaps from the SKU bore code,
 hub_pattern_16mm for hubs, tapped for shaft-end / set-screw holes."""
-import json, os, sys, glob
+import json, os, re, sys, glob
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 import numpy as np
 D = os.path.dirname(os.path.abspath(__file__))
-SHAFT = ('2101-', '2102-', '2106-', '2109-')
-HUB = ('1309-', '1310-')
+SHAFT = ('2101-', '2102-', '2106-', '2109-', '3501-')
+HUB = ('1309-', '1310-', '1301-', '1308-', '1311-', '1312-', '1313-', '1314-', '1315-')
 BORE_CODE = {'4008': 'rex_8mm', '0008': 'rex_8mm', '1006': 'd_6mm', '0006': 'd_6mm', '0014': 'bearing_14mm'}
 # 2312 / 4005 / 3204 / 2302-0032 / 2303-0125 resolved below
 
@@ -75,7 +75,19 @@ def merge_lines(snaps):
                 out.append(new)
     return out
 
+OLD = set(json.load(open(os.path.join(D, 'parts.before-kits.json'))))
+def title_bore(title):
+    """Kit-expansion parts: bore from the product title (SKU codes are not consistent across the newer series)."""
+    t = title.replace('®', '').replace('™', '')
+    if re.search(r'\b12mm REX', t): return None
+    if re.search(r'\b8mm REX', t) and not re.search(r'REX (Servo )?Shaft', t): return 'rex_8mm'
+    m = re.search(r'\b(\d+(?:\.\d+)?)mm (D-)?(?:Round )?(?:Bore|ID)\b', t)
+    if not m: return None
+    v = float(m.group(1))
+    return {4.0: 'm4_hole', 6.0: 'd_6mm', 8.0: 'rex_8mm', 14.0: 'bearing_14mm'}.get(v)
+
 def bore_type(sku, title):
+    if sku not in OLD: return title_bore(title)
     p = sku.split('-')
     if sku.startswith('3204-'):
         return 'd_6mm' if 'D-Bore' in title else 'rex_8mm' if 'REX' in title else None
@@ -83,8 +95,47 @@ def bore_type(sku, title):
     t = {'4008': 'rex_8mm', '0008': 'rex_8mm', '1006': 'd_6mm', '0006': 'd_6mm', '0014': 'bearing_14mm'}
     return t.get(p[1]) or t.get(p[2])
 
+def gen_hubshaft(sku, d):
+    """2110 hub-shaft: hub flange faces get the tapped 16 mm pattern (+ the 24 mm-circle clearance holes); the tapped hole
+    in the shaft tip is filled by the retaining screw in goBILDA's STEP, so it is not a snap."""
+    adds = []
+    Q = tight(sku, d)
+    flange = [s for s in d['snaps'] if abs(s['n'][1]) > 0.99 and np.hypot(s['p'][0], s['p'][2]) > 6]
+    hub = max(d['bosses'], key=lambda b: b['r'])
+    c0, c1 = sorted((hub['c0'][1], hub['c1'][1]))          # flange rim cylinder (stops at the 0.125 mm edge chamfers)
+    rr = np.hypot(Q[:, 0], Q[:, 2]); m = (rr > 9) & (rr < hub['r'] - 0.3) & (Q[:, 1] > c0 - 1) & (Q[:, 1] < c1 + 1)
+    f0, f1 = float(Q[m, 1].min()), float(Q[m, 1].max())    # true flange face planes from the mesh
+    ys = [round(f0, 3), round(f1, 3)]
+    for s in merge_lines(flange):
+        s['p'] = list(s['p']); s['p'][1] = f1 if s['n'][1] > 0 else f0; s['depth'] = round(f1 - f0, 3)
+        r = np.hypot(s['p'][0], s['p'][2])
+        pat = abs(abs(s['p'][0]) - 8) < 0.3 and abs(abs(s['p'][2]) - 8) < 0.3
+        s = {k: v for k, v in s.items() if not k.startswith('_')}
+        s.update({'id': 'm' + s['id'], 'type': 'hub_pattern_16mm' if pat else 'm4_hole', 'tapped': bool(pat)})
+        adds.append(s)
+    male = [dict(m) for m in d.get('male', [])]
+    phi = orient(Q, -40, -1, 'hex', True)                    # REX hex corner direction on the shaft
+    if phi is not None:
+        for m in male: m['upVector'] = [round(float(np.cos(phi)), 5), 0.0, round(float(np.sin(phi)), 5)]
+    return {'removeSnapIds': [s['id'] for s in d['snaps']], 'addSnaps': adds, 'male': male,
+            'notes': f'hub-shaft: {len(adds)} flange snaps (16 mm pattern tapped, 24 mm circle clearance); shaft-tip tapped hole holds the retaining screw (not a snap); flange planes {ys}'}
+
+STUB = ('1910-0025-0816', '1911-0025-0836', '1922-', '2105-')
+def stub_male(sku, d):
+    """Stub shafts (servo shafts, REV-pattern flanged shaft): male rex_8mm at the free tip of the 8 mm section, normal pointing
+    back into the shaft (same convention as 2106 shaft ends: tip flush with the bore face, shaft body through the bore)."""
+    b8 = max([b for b in d['bosses'] if 3.9 <= b['r'] <= 4.1 and abs(b['dir'][1]) > 0.999], key=lambda b: b['len'])
+    head = max(d['bosses'], key=lambda b: b['r'])
+    hy = (head['c0'][1] + head['c1'][1]) / 2
+    ys = (b8['c0'][1], b8['c1'][1]); tip = max(ys, key=lambda y: abs(y - hy))
+    from canon.lib import male as mk
+    return [mk('tip', 'rex_8mm', (0, tip, 0), (0, -np.sign(tip - hy), 0))]
+
 def gen(sku, d):
     ov = {}
+    if sku.startswith('2110-'): return gen_hubshaft(sku, d)
+    if sku.startswith(STUB): ov_m = stub_male(sku, d)
+    else: ov_m = None
     snaps = d['snaps']
     if sku.startswith(SHAFT):
         L2 = d['male'][1]['position'][1] if d.get('male') else abs(d['bbox'][1][1]) 
@@ -128,7 +179,7 @@ def gen(sku, d):
         for s in new: s['tapped'] = True if abs(s['n'][1]) < 0.5 else s['tapped']
     adds = []
     if bt:
-        rb = {'rex_8mm': 4.15, 'd_6mm': 3.05, 'bearing_14mm': 7.05}[bt]
+        rb = {'rex_8mm': 4.15, 'd_6mm': 3.05, 'bearing_14mm': 7.05, 'm4_hole': 2.05}[bt]
         rr = np.hypot(Q[:, 0], Q[:, 2])
         m = (rr <= rb) & (rr >= rb - 0.8)
         if m.sum() > 8:
@@ -146,7 +197,8 @@ def gen(sku, d):
     for j, s in enumerate(new):
         s = {k: v for k, v in s.items() if not k.startswith('_')}
         s['id'] = 'm' + s['id']; adds.append(s)
-    ov = {'removeSnapIds': [s['id'] for s in snaps], 'addSnaps': adds,
+    if ov_m: adds = [a for a in adds if a.get('holeId') != 'bore']    # the 8 mm section is the shaft, not a bore
+    ov = {'removeSnapIds': [s['id'] for s in snaps], 'addSnaps': adds, **({'male': ov_m} if ov_m else {}),
           'notes': f'normalised: seam/thread duplicates merged to outermost face; bore {bt or "untyped"} added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span {y0:.2f}..{y1:.2f}'}
     return ov
 
@@ -159,7 +211,7 @@ def main():
         if sku.startswith('3204-'):
             json.dump({'exclude': True, 'notes': 'two meshed bevel gears + hardware in one STEP (5 solids, perpendicular axes); not a single part, needs splitting into pinion + gear'}, open(os.path.join(D, 'overrides', f'{sku}.json'), 'w')); print('excluded', sku); continue
         ov = gen(sku, d)
-        if d.get('male'): ov['male'] = d['male']   # viewer/fitcheck read male snaps only from overrides
+        if d.get('male') and 'male' not in ov: ov['male'] = d['male']   # viewer/fitcheck read male snaps only from overrides
         if sku.startswith('1611-'):
             pass
         json.dump(ov, open(os.path.join(D, 'overrides', f'{sku}.json'), 'w'), indent=1)

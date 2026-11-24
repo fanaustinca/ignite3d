@@ -1,0 +1,3201 @@
+{
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h3b",
+  "h4a",
+  "h4b",
+  "h5a",
+  "h5b",
+  "h6a",
+  "h6b",
+  "h7a",
+  "h7b",
+  "h8a",
+  "h8b",
+  "h9a",
+  "h9b",
+  "h10a",
+  "h10b",
+  "h11a",
+  "h11b",
+  "h12a",
+  "h12b",
+  "h13a",
+  "h13b",
+  "h14a",
+  "h14b",
+  "h15a",
+  "h15b",
+  "h16a",
+  "h16b",
+  "h17a",
+  "h17b",
+  "h18a",
+  "h18b",
+  "h19a",
+  "h19b",
+  "h20a",
+  "h20b",
+  "h21a",
+  "h21b",
+  "h22a",
+  "h22b",
+  "h23a",
+  "h23b",
+  "h24a",
+  "h24b",
+  "h25a",
+  "h25b",
+  "h26a",
+  "h26b",
+  "h27a",
+  "h27b",
+  "h28a",
+  "h28b",
+  "h29a",
+  "h29b",
+  "h30a",
+  "h30b",
+  "h37a",
+  "h37b",
+  "h38a",
+  "h38b",
+  "h39a",
+  "h39b",
+  "h40a",
+  "h40b",
+  "h41a",
+  "h41b",
+  "h42a",
+  "h42b",
+  "h43a",
+  "h43b",
+  "h44a",
+  "h44b",
+  "h45a",
+  "h45b",
+  "h46a",
+  "h46b",
+  "h47a",
+  "h47b",
+  "h48a",
+  "h48b",
+  "h49a",
+  "h49b",
+  "h50a",
+  "h50b",
+  "h51a",
+  "h51b",
+  "h52a",
+  "h52b",
+  "h53a",
+  "h53b",
+  "h54a",
+  "h54b",
+  "h55a",
+  "h55b",
+  "h56a",
+  "h56b",
+  "h57a",
+  "h57b",
+  "h58a",
+  "h58b",
+  "h59a",
+  "h59b",
+  "h60a",
+  "h60b",
+  "h61a",
+  "h61b",
+  "h62a",
+  "h62b",
+  "h63a",
+  "h63b",
+  "h64a",
+  "h64b",
+  "h65a",
+  "h65b",
+  "h66a",
+  "h66b",
+  "h67a",
+  "h67b",
+  "h68a",
+  "h68b",
+  "h136a",
+  "h136b",
+  "h137a",
+  "h137b",
+  "h138a",
+  "h138b",
+  "h139a",
+  "h139b",
+  "h140a",
+  "h140b",
+  "h141a",
+  "h141b",
+  "h142a",
+  "h142b",
+  "h143a",
+  "h143b",
+  "h144a",
+  "h144b",
+  "h145a",
+  "h145b",
+  "h146a",
+  "h146b",
+  "h147a",
+  "h147b",
+  "h148a",
+  "h148b",
+  "h149a",
+  "h149b",
+  "h150a",
+  "h150b",
+  "h151a",
+  "h151b",
+  "h152a",
+  "h152b",
+  "h153a",
+  "h153b",
+  "h154a",
+  "h154b",
+  "h155a",
+  "h155b",
+  "h156a",
+  "h156b",
+  "h157a",
+  "h157b"
+ ],
+ "addSnaps": [
+  {
+   "id": "mh1a",
+   "type": "m4_hole",
+   "p": [
+    8.49,
+    -4.0,
+    8.49
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h1",
+   "full": false
+  },
+  {
+   "id": "mh1b",
+   "type": "m4_hole",
+   "p": [
+    8.49,
+    2.0,
+    8.49
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h1",
+   "full": false
+  },
+  {
+   "id": "mh2a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h2",
+   "full": false
+  },
+  {
+   "id": "mh2b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h2",
+   "full": false
+  },
+  {
+   "id": "mh3a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -4.0,
+    -11.31
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h3",
+   "full": false
+  },
+  {
+   "id": "mh3b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    -11.31
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h3",
+   "full": false
+  },
+  {
+   "id": "mh4a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h4",
+   "full": false
+  },
+  {
+   "id": "mh4b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h4",
+   "full": false
+  },
+  {
+   "id": "mh5a",
+   "type": "m4_hole",
+   "p": [
+    -8.49,
+    -4.0,
+    8.49
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h5",
+   "full": false
+  },
+  {
+   "id": "mh5b",
+   "type": "m4_hole",
+   "p": [
+    -8.49,
+    2.0,
+    8.49
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h5",
+   "full": false
+  },
+  {
+   "id": "mh6a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h6",
+   "full": false
+  },
+  {
+   "id": "mh6b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h6",
+   "full": false
+  },
+  {
+   "id": "mh7a",
+   "type": "m4_hole",
+   "p": [
+    -31.67,
+    1.5,
+    28.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h7",
+   "full": false
+  },
+  {
+   "id": "mh7b",
+   "type": "m4_hole",
+   "p": [
+    -31.67,
+    4.0,
+    28.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h7",
+   "full": false
+  },
+  {
+   "id": "mh8a",
+   "type": "m4_hole",
+   "p": [
+    -41.84,
+    1.5,
+    9.14
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h8",
+   "full": false
+  },
+  {
+   "id": "mh8b",
+   "type": "m4_hole",
+   "p": [
+    -41.84,
+    4.0,
+    9.14
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h8",
+   "full": false
+  },
+  {
+   "id": "mh9a",
+   "type": "m4_hole",
+   "p": [
+    -40.81,
+    1.5,
+    -13.01
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h9",
+   "full": false
+  },
+  {
+   "id": "mh9b",
+   "type": "m4_hole",
+   "p": [
+    -40.81,
+    4.0,
+    -13.01
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h9",
+   "full": false
+  },
+  {
+   "id": "mh10a",
+   "type": "m4_hole",
+   "p": [
+    -28.84,
+    1.5,
+    -31.67
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h10",
+   "full": false
+  },
+  {
+   "id": "mh10b",
+   "type": "m4_hole",
+   "p": [
+    -28.84,
+    4.0,
+    -31.67
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h10",
+   "full": false
+  },
+  {
+   "id": "mh11a",
+   "type": "m4_hole",
+   "p": [
+    -9.14,
+    1.5,
+    -41.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h11",
+   "full": false
+  },
+  {
+   "id": "mh11b",
+   "type": "m4_hole",
+   "p": [
+    -9.14,
+    4.0,
+    -41.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h11",
+   "full": false
+  },
+  {
+   "id": "mh12a",
+   "type": "m4_hole",
+   "p": [
+    9.14,
+    1.5,
+    -41.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h12",
+   "full": false
+  },
+  {
+   "id": "mh12b",
+   "type": "m4_hole",
+   "p": [
+    9.14,
+    4.0,
+    -41.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h12",
+   "full": false
+  },
+  {
+   "id": "mh13a",
+   "type": "m4_hole",
+   "p": [
+    28.84,
+    1.5,
+    -31.67
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h13",
+   "full": false
+  },
+  {
+   "id": "mh13b",
+   "type": "m4_hole",
+   "p": [
+    28.84,
+    4.0,
+    -31.67
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h13",
+   "full": false
+  },
+  {
+   "id": "mh14a",
+   "type": "m4_hole",
+   "p": [
+    40.81,
+    1.5,
+    -13.01
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h14",
+   "full": false
+  },
+  {
+   "id": "mh14b",
+   "type": "m4_hole",
+   "p": [
+    40.81,
+    4.0,
+    -13.01
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h14",
+   "full": false
+  },
+  {
+   "id": "mh15a",
+   "type": "m4_hole",
+   "p": [
+    41.84,
+    1.5,
+    9.14
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h15",
+   "full": false
+  },
+  {
+   "id": "mh15b",
+   "type": "m4_hole",
+   "p": [
+    41.84,
+    4.0,
+    9.14
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h15",
+   "full": false
+  },
+  {
+   "id": "mh16a",
+   "type": "m4_hole",
+   "p": [
+    31.67,
+    1.5,
+    28.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h16",
+   "full": false
+  },
+  {
+   "id": "mh16b",
+   "type": "m4_hole",
+   "p": [
+    31.67,
+    4.0,
+    28.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h16",
+   "full": false
+  },
+  {
+   "id": "mh17a",
+   "type": "m4_hole",
+   "p": [
+    13.01,
+    1.5,
+    40.81
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h17",
+   "full": false
+  },
+  {
+   "id": "mh17b",
+   "type": "m4_hole",
+   "p": [
+    13.01,
+    4.0,
+    40.81
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h17",
+   "full": false
+  },
+  {
+   "id": "mh18a",
+   "type": "m4_hole",
+   "p": [
+    -13.01,
+    1.5,
+    40.81
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h18",
+   "full": false
+  },
+  {
+   "id": "mh18b",
+   "type": "m4_hole",
+   "p": [
+    -13.01,
+    4.0,
+    40.81
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h18",
+   "full": false
+  },
+  {
+   "id": "mh19a",
+   "type": "m4_hole",
+   "p": [
+    -32.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h19",
+   "full": true
+  },
+  {
+   "id": "mh19b",
+   "type": "m4_hole",
+   "p": [
+    -32.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h19",
+   "full": true
+  },
+  {
+   "id": "mh20a",
+   "type": "m4_hole",
+   "p": [
+    -32.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h20",
+   "full": true
+  },
+  {
+   "id": "mh20b",
+   "type": "m4_hole",
+   "p": [
+    -32.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h20",
+   "full": true
+  },
+  {
+   "id": "mh21a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h21",
+   "full": true
+  },
+  {
+   "id": "mh21b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h21",
+   "full": true
+  },
+  {
+   "id": "mh22a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    32.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h22",
+   "full": true
+  },
+  {
+   "id": "mh22b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    32.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h22",
+   "full": true
+  },
+  {
+   "id": "mh23a",
+   "type": "m4_hole",
+   "p": [
+    32.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h23",
+   "full": true
+  },
+  {
+   "id": "mh23b",
+   "type": "m4_hole",
+   "p": [
+    32.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h23",
+   "full": true
+  },
+  {
+   "id": "mh24a",
+   "type": "m4_hole",
+   "p": [
+    32.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h24",
+   "full": true
+  },
+  {
+   "id": "mh24b",
+   "type": "m4_hole",
+   "p": [
+    32.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h24",
+   "full": true
+  },
+  {
+   "id": "mh25a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    32.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h25",
+   "full": true
+  },
+  {
+   "id": "mh25b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    32.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h25",
+   "full": true
+  },
+  {
+   "id": "mh26a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h26",
+   "full": true
+  },
+  {
+   "id": "mh26b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h26",
+   "full": true
+  },
+  {
+   "id": "mh27a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    -32.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h27",
+   "full": true
+  },
+  {
+   "id": "mh27b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    -32.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h27",
+   "full": true
+  },
+  {
+   "id": "mh28a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    -32.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h28",
+   "full": true
+  },
+  {
+   "id": "mh28b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    -32.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h28",
+   "full": true
+  },
+  {
+   "id": "mh29a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h29",
+   "full": true
+  },
+  {
+   "id": "mh29b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h29",
+   "full": true
+  },
+  {
+   "id": "mh30a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h30",
+   "full": true
+  },
+  {
+   "id": "mh30b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h30",
+   "full": true
+  },
+  {
+   "id": "mh37a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h37",
+   "full": true
+  },
+  {
+   "id": "mh37b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h37",
+   "full": true
+  },
+  {
+   "id": "mh38a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h38",
+   "full": true
+  },
+  {
+   "id": "mh38b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h38",
+   "full": true
+  },
+  {
+   "id": "mh39a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h39",
+   "full": true
+  },
+  {
+   "id": "mh39b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h39",
+   "full": true
+  },
+  {
+   "id": "mh40a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h40",
+   "full": true
+  },
+  {
+   "id": "mh40b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h40",
+   "full": true
+  },
+  {
+   "id": "mh41a",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h41",
+   "full": true
+  },
+  {
+   "id": "mh41b",
+   "type": "m4_hole",
+   "p": [
+    -24.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h41",
+   "full": true
+  },
+  {
+   "id": "mh42a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h42",
+   "full": true
+  },
+  {
+   "id": "mh42b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h42",
+   "full": true
+  },
+  {
+   "id": "mh43a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h43",
+   "full": true
+  },
+  {
+   "id": "mh43b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h43",
+   "full": true
+  },
+  {
+   "id": "mh44a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h44",
+   "full": true
+  },
+  {
+   "id": "mh44b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h44",
+   "full": true
+  },
+  {
+   "id": "mh45a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h45",
+   "full": true
+  },
+  {
+   "id": "mh45b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h45",
+   "full": true
+  },
+  {
+   "id": "mh46a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h46",
+   "full": true
+  },
+  {
+   "id": "mh46b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h46",
+   "full": true
+  },
+  {
+   "id": "mh47a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h47",
+   "full": true
+  },
+  {
+   "id": "mh47b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h47",
+   "full": true
+  },
+  {
+   "id": "mh48a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h48",
+   "full": true
+  },
+  {
+   "id": "mh48b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h48",
+   "full": true
+  },
+  {
+   "id": "mh49a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h49",
+   "full": true
+  },
+  {
+   "id": "mh49b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h49",
+   "full": true
+  },
+  {
+   "id": "mh50a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h50",
+   "full": true
+  },
+  {
+   "id": "mh50b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h50",
+   "full": true
+  },
+  {
+   "id": "mh51a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h51",
+   "full": true
+  },
+  {
+   "id": "mh51b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h51",
+   "full": true
+  },
+  {
+   "id": "mh52a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h52",
+   "full": true
+  },
+  {
+   "id": "mh52b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h52",
+   "full": true
+  },
+  {
+   "id": "mh53a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h53",
+   "full": true
+  },
+  {
+   "id": "mh53b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h53",
+   "full": true
+  },
+  {
+   "id": "mh54a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h54",
+   "full": true
+  },
+  {
+   "id": "mh54b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h54",
+   "full": true
+  },
+  {
+   "id": "mh55a",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h55",
+   "full": true
+  },
+  {
+   "id": "mh55b",
+   "type": "m4_hole",
+   "p": [
+    24.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h55",
+   "full": true
+  },
+  {
+   "id": "mh56a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -4.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h56",
+   "full": true
+  },
+  {
+   "id": "mh56b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    -24.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h56",
+   "full": true
+  },
+  {
+   "id": "mh57a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h57",
+   "full": true
+  },
+  {
+   "id": "mh57b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h57",
+   "full": true
+  },
+  {
+   "id": "mh58a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h58",
+   "full": true
+  },
+  {
+   "id": "mh58b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h58",
+   "full": true
+  },
+  {
+   "id": "mh59a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h59",
+   "full": true
+  },
+  {
+   "id": "mh59b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h59",
+   "full": true
+  },
+  {
+   "id": "mh60a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h60",
+   "full": true
+  },
+  {
+   "id": "mh60b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h60",
+   "full": true
+  },
+  {
+   "id": "mh61a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h61",
+   "full": true
+  },
+  {
+   "id": "mh61b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h61",
+   "full": true
+  },
+  {
+   "id": "mh62a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h62",
+   "full": true
+  },
+  {
+   "id": "mh62b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h62",
+   "full": true
+  },
+  {
+   "id": "mh63a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h63",
+   "full": true
+  },
+  {
+   "id": "mh63b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h63",
+   "full": true
+  },
+  {
+   "id": "mh64a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h64",
+   "full": true
+  },
+  {
+   "id": "mh64b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h64",
+   "full": true
+  },
+  {
+   "id": "mh65a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h65",
+   "full": true
+  },
+  {
+   "id": "mh65b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h65",
+   "full": true
+  },
+  {
+   "id": "mh66a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h66",
+   "full": true
+  },
+  {
+   "id": "mh66b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h66",
+   "full": true
+  },
+  {
+   "id": "mh67a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h67",
+   "full": true
+  },
+  {
+   "id": "mh67b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    -8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h67",
+   "full": true
+  },
+  {
+   "id": "mh68a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h68",
+   "full": true
+  },
+  {
+   "id": "mh68b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h68",
+   "full": true
+  },
+  {
+   "id": "mh136a",
+   "type": "m4_hole",
+   "p": [
+    -9.14,
+    1.5,
+    41.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h136",
+   "full": false
+  },
+  {
+   "id": "mh136b",
+   "type": "m4_hole",
+   "p": [
+    -9.14,
+    4.0,
+    41.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h136",
+   "full": false
+  },
+  {
+   "id": "mh137a",
+   "type": "m4_hole",
+   "p": [
+    9.14,
+    1.5,
+    41.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h137",
+   "full": false
+  },
+  {
+   "id": "mh137b",
+   "type": "m4_hole",
+   "p": [
+    9.14,
+    4.0,
+    41.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h137",
+   "full": false
+  },
+  {
+   "id": "mh138a",
+   "type": "m4_hole",
+   "p": [
+    28.84,
+    1.5,
+    31.67
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h138",
+   "full": false
+  },
+  {
+   "id": "mh138b",
+   "type": "m4_hole",
+   "p": [
+    28.84,
+    4.0,
+    31.67
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h138",
+   "full": false
+  },
+  {
+   "id": "mh139a",
+   "type": "m4_hole",
+   "p": [
+    40.81,
+    1.5,
+    13.01
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h139",
+   "full": false
+  },
+  {
+   "id": "mh139b",
+   "type": "m4_hole",
+   "p": [
+    40.81,
+    4.0,
+    13.01
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h139",
+   "full": false
+  },
+  {
+   "id": "mh140a",
+   "type": "m4_hole",
+   "p": [
+    41.84,
+    1.5,
+    -9.14
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h140",
+   "full": false
+  },
+  {
+   "id": "mh140b",
+   "type": "m4_hole",
+   "p": [
+    41.84,
+    4.0,
+    -9.14
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h140",
+   "full": false
+  },
+  {
+   "id": "mh141a",
+   "type": "m4_hole",
+   "p": [
+    31.67,
+    1.5,
+    -28.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h141",
+   "full": false
+  },
+  {
+   "id": "mh141b",
+   "type": "m4_hole",
+   "p": [
+    31.67,
+    4.0,
+    -28.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h141",
+   "full": false
+  },
+  {
+   "id": "mh142a",
+   "type": "m4_hole",
+   "p": [
+    13.01,
+    1.5,
+    -40.81
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h142",
+   "full": false
+  },
+  {
+   "id": "mh142b",
+   "type": "m4_hole",
+   "p": [
+    13.01,
+    4.0,
+    -40.81
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h142",
+   "full": false
+  },
+  {
+   "id": "mh143a",
+   "type": "m4_hole",
+   "p": [
+    -13.01,
+    1.5,
+    -40.81
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h143",
+   "full": false
+  },
+  {
+   "id": "mh143b",
+   "type": "m4_hole",
+   "p": [
+    -13.01,
+    4.0,
+    -40.81
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h143",
+   "full": false
+  },
+  {
+   "id": "mh144a",
+   "type": "m4_hole",
+   "p": [
+    -31.67,
+    1.5,
+    -28.84
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h144",
+   "full": false
+  },
+  {
+   "id": "mh144b",
+   "type": "m4_hole",
+   "p": [
+    -31.67,
+    4.0,
+    -28.84
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h144",
+   "full": false
+  },
+  {
+   "id": "mh145a",
+   "type": "m4_hole",
+   "p": [
+    -41.84,
+    1.5,
+    -9.14
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h145",
+   "full": false
+  },
+  {
+   "id": "mh145b",
+   "type": "m4_hole",
+   "p": [
+    -41.84,
+    4.0,
+    -9.14
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h145",
+   "full": false
+  },
+  {
+   "id": "mh146a",
+   "type": "m4_hole",
+   "p": [
+    -40.81,
+    1.5,
+    13.01
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h146",
+   "full": false
+  },
+  {
+   "id": "mh146b",
+   "type": "m4_hole",
+   "p": [
+    -40.81,
+    4.0,
+    13.01
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h146",
+   "full": false
+  },
+  {
+   "id": "mh147a",
+   "type": "m4_hole",
+   "p": [
+    -28.84,
+    1.5,
+    31.67
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h147",
+   "full": false
+  },
+  {
+   "id": "mh147b",
+   "type": "m4_hole",
+   "p": [
+    -28.84,
+    4.0,
+    31.67
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 2.5,
+   "tapped": false,
+   "holeId": "h147",
+   "full": false
+  },
+  {
+   "id": "mh148a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -4.0,
+    11.31
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h148",
+   "full": false
+  },
+  {
+   "id": "mh148b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    11.31
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h148",
+   "full": false
+  },
+  {
+   "id": "mh149a",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h149",
+   "full": false
+  },
+  {
+   "id": "mh149b",
+   "type": "m4_hole",
+   "p": [
+    -8.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h149",
+   "full": false
+  },
+  {
+   "id": "mh150a",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h150",
+   "full": false
+  },
+  {
+   "id": "mh150b",
+   "type": "m4_hole",
+   "p": [
+    -16.0,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h150",
+   "full": false
+  },
+  {
+   "id": "mh151a",
+   "type": "m4_hole",
+   "p": [
+    -11.31,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h151",
+   "full": false
+  },
+  {
+   "id": "mh151b",
+   "type": "m4_hole",
+   "p": [
+    -11.31,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h151",
+   "full": false
+  },
+  {
+   "id": "mh152a",
+   "type": "m4_hole",
+   "p": [
+    -8.49,
+    -4.0,
+    -8.49
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h152",
+   "full": false
+  },
+  {
+   "id": "mh152b",
+   "type": "m4_hole",
+   "p": [
+    -8.49,
+    2.0,
+    -8.49
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h152",
+   "full": false
+  },
+  {
+   "id": "mh153a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -4.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h153",
+   "full": false
+  },
+  {
+   "id": "mh153b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    2.0,
+    -16.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h153",
+   "full": false
+  },
+  {
+   "id": "mh154a",
+   "type": "m4_hole",
+   "p": [
+    8.49,
+    -4.0,
+    -8.49
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h154",
+   "full": false
+  },
+  {
+   "id": "mh154b",
+   "type": "m4_hole",
+   "p": [
+    8.49,
+    2.0,
+    -8.49
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h154",
+   "full": false
+  },
+  {
+   "id": "mh155a",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h155",
+   "full": false
+  },
+  {
+   "id": "mh155b",
+   "type": "m4_hole",
+   "p": [
+    16.0,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h155",
+   "full": false
+  },
+  {
+   "id": "mh156a",
+   "type": "m4_hole",
+   "p": [
+    11.31,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h156",
+   "full": false
+  },
+  {
+   "id": "mh156b",
+   "type": "m4_hole",
+   "p": [
+    11.31,
+    2.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h156",
+   "full": false
+  },
+  {
+   "id": "mh157a",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    -4.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h157",
+   "full": false
+  },
+  {
+   "id": "mh157b",
+   "type": "m4_hole",
+   "p": [
+    8.0,
+    2.0,
+    8.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 6.0,
+   "tapped": false,
+   "holeId": "h157",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -4.00..4.00"
+}

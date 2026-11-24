@@ -1,0 +1,48 @@
+{
+ "auto_norm": true,
+ "removeSnapIds": [
+  "h0a",
+  "h0b",
+  "h1a",
+  "h1b"
+ ],
+ "addSnaps": [
+  {
+   "id": "nh0b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -1.456,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 3.0,
+   "tapped": true,
+   "holeId": "h0",
+   "full": true
+  },
+  {
+   "id": "nh0a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    1.544,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 3.0,
+   "tapped": true,
+   "holeId": "h0",
+   "full": true
+  }
+ ],
+ "notes": "norm_new: 4 detected hole faces -> 2 (collinear segments merged onto the outer faces)"
+}

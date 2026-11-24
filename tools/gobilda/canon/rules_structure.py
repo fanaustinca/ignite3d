@@ -11,7 +11,10 @@ The web side of a U-section is found from the material centroid (it sits toward 
 import numpy as np
 
 PREFIXES = ['1101-', '1102-', '1103-', '1106-', '1109-', '1116-', '1117-', '1120-', '1121-', '1126-', '1127-',
-            '1137-', '1139-', '1143-']
+            '1137-', '1139-', '1143-',
+            # kit/popular expansion (2026-11-23)
+            '1105-', '1123-', '1133-', '2803-', '1206-', '1616-', '1800-', '1801-', '2311-',
+            '1111-', '1112-', '1113-', '1147-', '1216-', '1122-', '1118-', '4103-', '1145-']
 
 def _E(i, s=1.0):
     v = np.zeros(3); v[i] = s; return v
@@ -86,7 +89,7 @@ def _rail(ctx, merge_only_ends=False):
     outermost snap plane and the part is centred on it.  Side (through) holes of 1106 are kept as detected."""
     ext, ctr = _extent(ctx)
     L = int(np.argmax(ext)); lo, hi = ctr[L] - ext[L] / 2, ctr[L] + ext[L] / 2
-    if ctx['sku'][:4] == '1109':   # tiny 0.25 mm nubs on the end faces inflate the bbox: the true end planes are +-nominal/2
+    if ctx['sku'][:4] in ('1109', '1118', '4103'):   # tiny 0.25 mm nubs on the end faces inflate the bbox: the true end planes are +-nominal/2
         nom = float(ctx['sku'][-4:]); hi, lo = ctr[L] + nom / 2, ctr[L] - nom / 2
         ctr = ctr.copy(); ext = ext.copy(); ext[L] = nom
     ends = [s for s in ctx['snaps'] if abs(abs(s['n'][L]) - 1) < 1e-6]
@@ -101,7 +104,14 @@ def _rail(ctx, merge_only_ends=False):
         if abs(abs(n[L]) - 1) > 1e-6:
             if merge_only_ends:   # 1106 side through-holes: drop the internal faces where they cross the central axial bore
                 ax = int(np.argmax(np.abs(n)))
-                if abs(s['p'][ax] - ctr[ax]) >= ext[ax] / 2 - 0.1: keep[('side', s['id'])] = s
+                if ctx['sku'][:4] == '1145':
+                    # 8 x 8 mm threaded beam: every cross hole is tapped through; thread chamfers start ~0.05 mm inside
+                    # the face and the OCC bbox is inflated, so snap the outer segment ends onto the true +-4 mm faces
+                    if abs(s['p'][ax] - ctr[ax]) >= 3.5 and np.sign(n[ax]) == np.sign(s['p'][ax] - ctr[ax]):
+                        p = list(s['p']); p[ax] = ctr[ax] + np.sign(n[ax]) * 4.0
+                        key = ('side', ax, int(np.sign(n[ax])), round(p[L] * 2), round(p[3 - L - ax] * 2))
+                        keep[key] = {**s, 'p': p, 'depth': 8.0, 'tapped': True, 'type': 'm4_hole'}
+                elif abs(s['p'][ax] - ctr[ax]) >= ext[ax] / 2 - 0.1: keep[('side', s['id'])] = s
             continue
         end = hi if n[L] > 0 else lo
         if abs(s['p'][L] - end) > 0.7: continue
@@ -143,14 +153,14 @@ def _lbeam(ctx):
 
 def rule(ctx):
     p = ctx['sku'][:4]
-    if p in ('1102', '1116', '1117', '1126', '1127', '1137', '1139'):
+    if p in ('1102', '1116', '1117', '1126', '1127', '1137', '1139', '1105', '1123', '1133', '2803', '1206', '1616', '1800', '1801', '2311'):
         _slots(ctx); return _flat(ctx)
-    if p == '1103':
+    if p in ('1103', '1111', '1112', '1113', '1147', '1216'):
         _slots(ctx); return _lbeam(ctx)
-    if p in ('1109', '1106'):
-        return _rail(ctx, merge_only_ends=(p == '1106'))
+    if p in ('1109', '1106', '1118', '4103', '1145'):
+        return _rail(ctx, merge_only_ends=(p in ('1106', '1145')))
     _slots(ctx)
     p = ctx['sku'][:4]
-    if p in ('1101', '1120', '1121', '1143'):
+    if p in ('1101', '1120', '1121', '1143', '1122'):
         return _u_channel(ctx)
     return None

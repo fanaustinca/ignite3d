@@ -1,0 +1,75 @@
+{
+ "removeSnapIds": [
+  "h1a",
+  "h1b",
+  "h6a",
+  "h6b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    -0.90648,
+    0.0,
+    0.42225
+   ],
+   "id": "borea",
+   "type": "d_6mm",
+   "p": [
+    0.0,
+    -9.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 18.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    -0.90648,
+    0.0,
+    0.42225
+   ],
+   "id": "boreb",
+   "type": "d_6mm",
+   "p": [
+    0.0,
+    9.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 18.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh1b",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    -3.9958,
+    3.391
+   ],
+   "n": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "depth": 0.668,
+   "tapped": true,
+   "holeId": "h1",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore d_6mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -9.00..9.00"
+}

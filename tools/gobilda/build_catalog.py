@@ -58,6 +58,32 @@ def mesh_bounds(glb_path):
     acc = json.loads(b[20:20 + n])['accessors'][0]
     return np.array(acc['min']), np.array(acc['max'])
 
+def mesh_points(glb_path):
+    import struct
+    b = open(glb_path, 'rb').read()
+    n = struct.unpack('<I', b[12:16])[0]
+    js = json.loads(b[20:20 + n]); acc = js['accessors'][0]; bv = js['bufferViews'][acc['bufferView']]
+    off = 20 + n + 8 + bv.get('byteOffset', 0) + acc.get('byteOffset', 0)
+    return np.frombuffer(b[off: off + acc['count'] * 12], dtype='<f4').reshape(-1, 3).astype(float)
+
+BORE_R = {'m4_hole': 2.0, 'rex_8mm': 4.0, 'd_6mm': 3.0, 'bearing_14mm': 7.0, 'hub_pattern_16mm': 2.0}
+def face_fix(P, s, win=0.3):
+    """Hole cylinders stop at the chamfer / thread run-out, so a detected face snap can sit up to ~0.2 mm inside or outside
+    the real face. Put it on the face plane measured on the mesh in a ring around the hole (|shift| <= win)."""
+    p = np.array(s['p'], float); n = np.array(s['n'], float)
+    k = int(np.argmax(np.abs(n)))
+    if abs(abs(n[k]) - 1) > 1e-6: return 0.0
+    r0 = BORE_R.get(s['type'], 2.0) + 0.35
+    o = [i for i in range(3) if i != k]
+    rr = np.hypot(P[:, o[0]] - p[o[0]], P[:, o[1]] - p[o[1]])
+    h = (P - p) @ n
+    m = (rr > r0) & (rr < r0 + 2.0) & (np.abs(h) <= win + 1e-6)
+    if m.sum() < 3: return 0.0
+    face = float(h[m].max())
+    if abs(face) < 1e-4: return 0.0
+    s['p'] = (p + n * face).round(4).tolist()
+    return face
+
 def to_app_snap(s):
     o = {'id': s['id'], 'type': s['type'], 'position': [round(x, 4) for x in s.get('p', s.get('position'))],
          'normal': [round(x, 6) for x in s.get('n', s.get('normal'))]}
@@ -71,6 +97,7 @@ def to_app_snap(s):
 def main():
     os.makedirs(PARTS, exist_ok=True)
     index, step_index, skus_mesh = [], {}, []
+    global facefix_stats; facefix_stats = []
     skipped = []
     for sku, info in sorted(parts.items()):
         out = os.path.join(D, 'out', f'{sku}.json')
@@ -88,6 +115,10 @@ def main():
         for s in snaps:
             if s['id'] in ov.get('typeFixes', {}): s['type'] = ov['typeFixes'][s['id']]
             if s['id'] in ov.get('tappedFix', {}): s['tapped'] = bool(ov['tappedFix'][s['id']])
+        if info.get('added') == 'kits' and not ov.get('noFaceFix'):   # kit expansion: snap faces onto the real faces
+            P = mesh_points(os.path.join(D, 'out', f'{sku}.glb'))
+            moved = [abs(face_fix(P, s_)) for s_ in snaps]
+            facefix_stats.append((sku, sum(1 for x in moved if x > 1e-4), max(moved or [0])))
         males = list({m['id']: m for m in (meta.get('male') or []) + ov.get('male', [])}.values())  # dedupe by id (override wins)
         KNOWN = {'m4_hole', 'bearing_14mm', 'rex_8mm', 'd_6mm', 'hub_pattern_16mm'}
         app_snaps = [to_app_snap(s) for s in snaps if s.get('type') in KNOWN] + [to_app_snap({**m, 'male': True}) for m in males if m.get('type') in KNOWN]
@@ -123,7 +154,26 @@ def main():
     cat = {'version': VERSION, 'source': 'goBILDA STEP files (gobilda.com), converted by Ignite3D', 'parts': index}
     json.dump(cat, open(os.path.join(APP, 'public', 'catalog.json'), 'w'), separators=(',', ':'))
     json.dump(index, open(os.path.join(APP, 'src', 'data', 'gobilda.json'), 'w'), separators=(',', ':'))
+    # kits: which catalogue parts each goBILDA kit / bundle contains (kits_bom.json from kit_bom.py)
+    kb = os.path.join(D, 'kits_bom.json')
+    if os.path.exists(kb):
+        have = {e['sku'] for e in index}
+        kits = []
+        KB = json.load(open(kb))
+        names = {s: n for k in KB.values() for s, n in k.get('names', {}).items()}
+        for ksku, k in KB.items():
+            items = {s: q for s, q in k['flat'].items()}
+            inc = {s: q for s, q in items.items() if s in have}
+            if len(inc) < 3: continue   # tool sets, electronics-only packs, pages without a contents list
+            missing = sorted(s for s in items if s not in have)
+            kits.append({'sku': ksku, 'name': clean_name(k['title']), 'items': inc,
+                         'missing': [{'sku': s, 'name': clean_name(parts[s]['title']) if s in parts else names.get(s, s)} for s in missing]})
+        kits.sort(key=lambda k: (not k['name'].startswith(('FTC', 'Strafer', 'BeeLine', 'Bravo')), k['name']))
+        json.dump(kits, open(os.path.join(APP, 'src', 'data', 'kits.json'), 'w'), separators=(',', ':'))
+        print(f'kits: {len(kits)}; parts in kits {len({s for k in kits for s in k["items"]})}')
     tot = sum(os.path.getsize(os.path.join(PARTS, f)) for f in os.listdir(PARTS))
+    big = sorted(facefix_stats, key=lambda x: -x[2])[:8]
+    print(f'face_fix: {sum(x[1] for x in facefix_stats)} snaps moved on {sum(1 for x in facefix_stats if x[1])} parts; largest {[(a, round(c, 3)) for a, b, c in big]}')
     print(f'catalog: {len(index)} parts, skipped {len(skipped)}, public/parts {tot / 1e6:.1f} MB')
     from collections import Counter
     print(Counter(r for _, r in skipped).most_common(6))

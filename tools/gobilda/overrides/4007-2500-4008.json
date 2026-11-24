@@ -1,0 +1,155 @@
+{
+ "removeSnapIds": [
+  "h0b",
+  "h1a",
+  "h1b",
+  "h4a",
+  "h4b",
+  "h5a",
+  "h7a",
+  "h7b",
+  "h8a",
+  "h9b",
+  "h10a",
+  "h10b",
+  "h13a",
+  "h13b",
+  "h14a",
+  "h14b",
+  "h15a",
+  "h16b",
+  "h17b",
+  "h18a",
+  "h18b",
+  "h22b",
+  "h23a",
+  "h23b",
+  "h24a",
+  "h24b",
+  "h28a",
+  "h28b",
+  "h29a",
+  "h30a"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "id": "borea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    -6.4391,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 12.878,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "id": "boreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    6.4391,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 12.878,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh24b",
+   "type": "m4_hole",
+   "p": [
+    -9.5,
+    13.2167,
+    -10.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 9.614,
+   "tapped": true,
+   "holeId": "h24",
+   "full": false
+  },
+  {
+   "id": "mh13a",
+   "type": "m4_hole",
+   "p": [
+    9.5,
+    -13.2168,
+    -10.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 12.467,
+   "tapped": true,
+   "holeId": "h13",
+   "full": false
+  },
+  {
+   "id": "mh7a",
+   "type": "m4_hole",
+   "p": [
+    13.1001,
+    9.5,
+    10.0
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 12.35,
+   "tapped": true,
+   "holeId": "h7",
+   "full": false
+  },
+  {
+   "id": "mh10b",
+   "type": "m4_hole",
+   "p": [
+    -13.1001,
+    -9.5,
+    10.0
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 2.394,
+   "tapped": true,
+   "holeId": "h10",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore rex_8mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -15.37..15.37"
+}

@@ -1,0 +1,4 @@
+{"addSnaps": [
+ {"id": "w0a", "type": "m4_hole", "p": [0, -0.84, 0], "n": [0, -1, 0], "depth": 1.68, "tapped": false, "holeId": "w0"},
+ {"id": "w0b", "type": "m4_hole", "p": [0, 0.84, 0], "n": [0, 1, 0], "depth": 1.68, "tapped": false, "holeId": "w0"}],
+ "notes": "split-lock washer: the bore is a split helix in the STEP (no cylinder) -> clearance snaps added on both faces (mesh y +-0.84)"}

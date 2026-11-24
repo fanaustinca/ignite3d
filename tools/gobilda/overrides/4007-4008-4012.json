@@ -1,0 +1,107 @@
+{
+ "removeSnapIds": [
+  "h2a",
+  "h2b",
+  "h3a",
+  "h7a",
+  "h7b",
+  "h8a",
+  "h11b",
+  "h12a",
+  "h12b",
+  "h16b",
+  "h17a",
+  "h17b",
+  "h21a",
+  "h21b",
+  "h22a",
+  "h24a",
+  "h24b",
+  "h25a",
+  "h25b",
+  "h26a",
+  "h27b",
+  "h28a",
+  "h28b",
+  "h29a",
+  "h29b",
+  "h31b",
+  "h32a",
+  "h32b"
+ ],
+ "addSnaps": [
+  {
+   "id": "mh21a",
+   "type": "m4_hole",
+   "p": [
+    -9.4184,
+    5.8973,
+    7.7954
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 1.76,
+   "tapped": true,
+   "holeId": "h21",
+   "full": false
+  },
+  {
+   "id": "mh24a",
+   "type": "m4_hole",
+   "p": [
+    7.8019,
+    -5.9027,
+    9.533
+   ],
+   "n": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "depth": 2.07,
+   "tapped": true,
+   "holeId": "h24",
+   "full": false
+  },
+  {
+   "id": "mh29b",
+   "type": "m4_hole",
+   "p": [
+    -7.7981,
+    -5.9027,
+    -9.5331
+   ],
+   "n": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "depth": 2.07,
+   "tapped": true,
+   "holeId": "h29",
+   "full": false
+  },
+  {
+   "id": "mh32b",
+   "type": "m4_hole",
+   "p": [
+    9.4184,
+    5.8973,
+    -7.8046
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 1.76,
+   "tapped": true,
+   "holeId": "h32",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -10.50..10.50"
+}

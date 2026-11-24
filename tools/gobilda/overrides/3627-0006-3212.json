@@ -1,0 +1,50 @@
+{
+ "auto_norm": true,
+ "removeSnapIds": [
+  "h2a",
+  "h2b",
+  "h11a",
+  "h11b",
+  "h12a",
+  "h12b"
+ ],
+ "addSnaps": [
+  {
+   "id": "nh11a",
+   "type": "d_6mm",
+   "p": [
+    -5.746,
+    0.0,
+    0.0
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 9.492,
+   "tapped": false,
+   "holeId": "h11",
+   "full": true
+  },
+  {
+   "id": "nh12b",
+   "type": "d_6mm",
+   "p": [
+    3.746,
+    0.0,
+    0.0
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 9.492,
+   "tapped": false,
+   "holeId": "h12",
+   "full": true
+  }
+ ],
+ "notes": "norm_new: 6 detected hole faces -> 2 (collinear segments merged onto the outer faces)"
+}

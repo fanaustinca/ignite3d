@@ -1,0 +1,74 @@
+{
+ "removeSnapIds": [
+  "h6b",
+  "h7a",
+  "h7b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    0.99998,
+    0.0,
+    -0.00621
+   ],
+   "id": "borea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    -5.4,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 10.8,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    0.99998,
+    0.0,
+    -0.00621
+   ],
+   "id": "boreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    5.4,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 10.8,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh7b",
+   "type": "m4_hole",
+   "p": [
+    -0.0005,
+    1.1513,
+    -3.9295
+   ],
+   "n": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "depth": 0.43,
+   "tapped": true,
+   "holeId": "h7",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore rex_8mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -5.40..5.40"
+}

@@ -7,7 +7,7 @@ PY = os.path.expanduser('~/miniforge3/envs/occt/bin/python')
 
 def one(sku):
     out = os.path.join(D, 'out', f'{sku}.json')
-    r = subprocess.run([PY, os.path.join(D, 'convert.py'), sku], capture_output=True, text=True, timeout=1800)
+    r = subprocess.run([PY, os.path.join(D, 'convert.py'), sku], capture_output=True, text=True, timeout=14400)
     line = next((l for l in r.stdout.splitlines() if l.startswith('{"sku"')), None)
     if r.returncode or not line:
         return sku, 'ERROR ' + (r.stderr.strip().splitlines() or ['?'])[-1][:200]

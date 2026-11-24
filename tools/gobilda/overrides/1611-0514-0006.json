@@ -1,0 +1,77 @@
+{
+ "removeSnapIds": [
+  "h4a",
+  "h4b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    -0.90631,
+    0.0,
+    -0.42262
+   ],
+   "id": "borea",
+   "type": "d_6mm",
+   "p": [
+    0.0,
+    -4.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 5.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    -0.90631,
+    0.0,
+    -0.42262
+   ],
+   "id": "boreb",
+   "type": "d_6mm",
+   "p": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 5.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore d_6mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -4.00..1.00",
+ "male": [
+  {
+   "id": "barrel",
+   "type": "bearing_14mm",
+   "position": [
+    0.0,
+    0.0,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "upVector": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "male": true
+  }
+ ]
+}

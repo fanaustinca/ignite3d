@@ -1,0 +1,46 @@
+{
+ "removeSnapIds": [
+  "h2a",
+  "h19a",
+  "h36a"
+ ],
+ "addSnaps": [
+  {
+   "id": "mh19a",
+   "type": "m4_hole",
+   "p": [
+    9.4006,
+    -9.913,
+    -8.3019
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 0.817,
+   "tapped": true,
+   "holeId": "h19",
+   "full": false
+  },
+  {
+   "id": "mh36a",
+   "type": "m4_hole",
+   "p": [
+    -9.3994,
+    8.2999,
+    -9.6291
+   ],
+   "n": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "depth": 0.428,
+   "tapped": true,
+   "holeId": "h36",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -12.50..12.50"
+}

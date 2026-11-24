@@ -1,0 +1,157 @@
+{
+ "removeSnapIds": [
+  "h1a",
+  "h1b",
+  "h2a",
+  "h2b",
+  "h3a",
+  "h5a",
+  "h5b",
+  "h6a",
+  "h6b",
+  "h7a",
+  "h8b",
+  "h9a",
+  "h9b",
+  "h10a",
+  "h10b",
+  "h12b",
+  "h13a",
+  "h13b",
+  "h14a",
+  "h14b",
+  "h17b",
+  "h18a",
+  "h18b",
+  "h22b",
+  "h26a",
+  "h26b",
+  "h27a",
+  "h31a",
+  "h34a",
+  "h34b",
+  "h35a",
+  "h35b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "id": "borea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    -15.5,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 16.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    1.0,
+    0.0,
+    -0.0
+   ],
+   "id": "boreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    0.5,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 16.0,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh1a",
+   "type": "m4_hole",
+   "p": [
+    -10.371,
+    -10.5038,
+    -6.3
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 9.871,
+   "tapped": true,
+   "holeId": "h1",
+   "full": false
+  },
+  {
+   "id": "mh5a",
+   "type": "m4_hole",
+   "p": [
+    6.3,
+    10.4962,
+    -10.4985
+   ],
+   "n": [
+    0.0,
+    0.0,
+    -1.0
+   ],
+   "depth": 9.996,
+   "tapped": true,
+   "holeId": "h5",
+   "full": false
+  },
+  {
+   "id": "mh10b",
+   "type": "m4_hole",
+   "p": [
+    10.372,
+    -10.5038,
+    6.3
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 9.872,
+   "tapped": true,
+   "holeId": "h10",
+   "full": false
+  },
+  {
+   "id": "mh14b",
+   "type": "m4_hole",
+   "p": [
+    -6.3,
+    10.4962,
+    10.4935
+   ],
+   "n": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "depth": 9.996,
+   "tapped": true,
+   "holeId": "h14",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore rex_8mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -15.50..15.50"
+}

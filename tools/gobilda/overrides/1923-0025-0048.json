@@ -1,0 +1,7 @@
+{
+ "removeSnapIds": [
+  "h0a"
+ ],
+ "addSnaps": [],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -25.00..25.00"
+}

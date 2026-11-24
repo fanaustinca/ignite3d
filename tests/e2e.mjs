@@ -178,6 +178,22 @@ await test('catalog has the full goBILDA seed set and search works', async () =>
   assert(rows.includes('5203-2402-0014') && rows.every((r) => /^520[234]-\d{4}-0014$/.test(r)), `search rows ${rows}`);
 });
 
+await test('kit picker shows exactly the Strafer kit parts with quantities', async () => {
+  const kitSku = await page.$$eval('[data-testid="kit-select"] option', (os) => os.find((o) => o.textContent.startsWith('Strafer'))?.value);
+  assert(kitSku, 'Strafer kit listed');
+  await page.select('[data-testid="kit-select"]', kitSku);
+  await sleep(150);
+  const rows = await page.$$eval('[data-sku]', (els) => els.map((e) => e.getAttribute('data-sku')));
+  for (const s of ['2110-0608-0002', '1522-0010-0090', '1201-0043-0002', '5203-2402-0019']) assert(rows.includes(s), `kit row ${s} in ${rows}`);
+  assert(!rows.includes('1120-0005-0144'), 'non-kit part hidden');
+  const qty = await page.$eval('[data-sku="1201-0043-0002"] [data-testid="kit-qty"]', (e) => e.textContent);
+  assert(qty === '×8', `quad block qty ${qty}`);
+  assert((await page.$eval('[data-testid="kit-summary"]', (e) => e.textContent)).includes('non-CAD'), 'summary');
+  await shot('02b-kit-strafer');
+  await page.select('[data-testid="kit-select"]', '');
+  await sleep(100);
+});
+
 await test('places the first channel on the floor grid with a real mouse click', async () => {
   await clickPart('1120-0005-0144');
   await st(() => window.__ignite.setView([0, 520, 520], [0, 0, 0]));

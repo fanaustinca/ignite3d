@@ -22,7 +22,8 @@
   joint, the head always lands on the exposed outer face (never inside a wall), and the locknut is added.
 - **Move arrows + rotation rings** on the selection: drag a ring to turn the part about X / Y / Z, snapping
   in 45° steps (15° / 90° / free in the toolbar). `R` turns 90° about the mated hole axis.
-- **619 real goBILDA parts** converted from goBILDA's own STEP files: U-channels (incl. the real slot / oval hole
+- **1,084 real goBILDA parts** converted from goBILDA's own STEP files — everything in goBILDA's kits and bundles
+  (FTC Starter Kit, Strafer, BeeLine, U-channel/goRAIL/beam bundles, motion starter packs…) plus popular series: U-channels (incl. the real slot / oval hole
   pattern), low-side & mini channels, goRAIL, beams, grid plates, quad blocks & mounts, clamping mounts, pillow
   blocks, Yellow Jacket motors (5202/5203/5204), servos & ServoBlocks, REX / D shafts, hubs, collars, bearings,
   gears, pulleys, Viper-Slide kits, mecanum / Gecko / Rhino / omni wheels, screws, nuts, washers, standoffs and
@@ -43,6 +44,8 @@
   big build is cleared, the empty scene offers to restore it.
 - **BOM** with CSV download, **share links** (`#build=…`, compressed in the URL), undo/redo, grouping,
   mirroring (mecanum L↔R swap), hide / x-ray, autosave, light & dark themes.
+- **Kit picker:** choose a goBILDA kit under the search box to see exactly its parts with quantities (from the kit's
+  bill of materials); electronics, wiring, belts and chain are listed as non-CAD items.
 - **Custom parts:** upload `.glb`/`.stl`, click to tag holes (auto-centres on round holes, detects
   through-thickness, one-click 16 mm 4-hole stamp), save to your browser, export a `{sku}.glb + {sku}.json`
   bundle or open a pre-filled GitHub issue to add it to the catalog.

@@ -1,0 +1,30 @@
+{
+ "removeSnapIds": [
+  "h6a",
+  "h7b",
+  "h12b",
+  "h74a",
+  "h74b"
+ ],
+ "addSnaps": [
+  {
+   "id": "mh6a",
+   "type": "m4_hole",
+   "p": [
+    0.0,
+    4.4,
+    6.1125
+   ],
+   "n": [
+    0.0,
+    0.0,
+    1.0
+   ],
+   "depth": 1.487,
+   "tapped": true,
+   "holeId": "h6",
+   "full": true
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore untyped added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -7.50..7.50"
+}

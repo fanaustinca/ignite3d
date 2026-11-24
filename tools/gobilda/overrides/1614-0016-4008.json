@@ -1,0 +1,51 @@
+{
+ "addSnaps": [
+  {
+   "id": "rexborea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    0.2176,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "depth": 16.0,
+   "tapped": false,
+   "holeId": "rexbore",
+   "full": true,
+   "up": [
+    1.0,
+    0.0,
+    0.0
+   ]
+  },
+  {
+   "id": "rexboreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    16.2176,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "depth": 16.0,
+   "tapped": false,
+   "holeId": "rexbore",
+   "full": true,
+   "up": [
+    1.0,
+    0.0,
+    0.0
+   ]
+  }
+ ],
+ "notes": "mount_bores: REX bore at [-0.004, 0.006] axis y, clearance r 3.50, faces 0.218..16.218 | mount_bores: REX bore at [0.0, 0.0] axis y, clearance r 3.50, faces 0.218..16.218 | mount_bores: REX bore at [0.0, 0.0] axis y, clearance r 3.50, faces 0.218..16.218 | mount_bores: REX bore at [0.0, 0.0] axis y, clearance r 3.50, faces 0.218..16.218"
+}

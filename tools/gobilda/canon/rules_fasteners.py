@@ -3,7 +3,10 @@ import numpy as np
 from .lib import unit, frame, snap_axis, male, longest_axis
 
 PREFIXES = ['2800-', '2802-', '2811-', '2812-', '2801-', '2810-', '2807-', '1500-', '1520-', '1526-',
-            '1501-', '1516-', '1523-', '1504-', '1505-', '1506-', '1517-', '1531-', '2904-']
+            '1501-', '1516-', '1523-', '1504-', '1505-', '1506-', '1517-', '1531-', '2904-',
+            # kit/popular expansion (2026-11-23)
+            '1502-', '1503-', '1514-', '1521-', '1522-', '1529-', '1530-', '3900-', '2804-', '2813-', '2822-', '2806-',
+            '2809-', '2805-', '2816-']
 
 def _ax(b):
     return unit(b['dir'])
@@ -19,6 +22,12 @@ def _screw(ctx):
     sh = [b for b in bs if b is not head and abs(abs(np.dot(_ax(b), a)) - 1) < 1e-4]
     shank = max(sh, key=lambda b: b['r'])
     hc = (np.array(head['c0']) + np.array(head['c1'])) / 2
+    if ctx['sku'].startswith('2822-'):
+        # premium screws: the blue thread-lock patch is a second coaxial solid (r ~ shank r) partway down the thread;
+        # the real shank is the coaxial M4 boss whose end meets the head
+        hend = lambda b: min(np.linalg.norm(np.array(b[k]) - np.array(head[j])) for k in ('c0', 'c1') for j in ('c0', 'c1'))
+        m4 = [b for b in sh if 1.6 <= b['r'] <= 2.1]
+        shank = min(m4 or sh, key=lambda b: (round(hend(b), 1), -b['r']))
     sc = (np.array(shank['c0']) + np.array(shank['c1'])) / 2
     h = unit(a * (1 if np.dot(hc - sc, a) > 0 else -1))        # direction shank -> head
     # under-head plane = end of shank boss nearest the head
@@ -81,9 +90,21 @@ def _disc(ctx):
     Centred on the mesh extent along the axis (2904: flange underside at y=0, spigot toward -Y)."""
     sku = ctx['sku']
     full = [b for b in ctx['bosses'] if b.get('full')]
-    big = max(full or ctx['bosses'], key=lambda b: b['r'])
-    a = unit(big['dir'])
-    cen = np.array(big['c0']) if full else np.zeros(3)
+    if full or ctx['bosses']:
+        big = max(full or ctx['bosses'], key=lambda b: b['r'])
+        a = unit(big['dir'])
+        cen = np.array(big['c0']) if full else np.zeros(3)
+    else:
+        # split-lock washers / goRAIL hurricane nuts: no full outer cylinder -> axis of the largest full hole
+        # (the M4 bore), else the thinnest bbox axis; centred on that hole
+        hs = [h for h in ctx['holes'] if h.get('full')]
+        if hs:
+            hb = max(hs, key=lambda h: (h['r'] < 2.5, h['len']))
+            a = unit(hb['dir']); cen = np.array(hb['c0'], float)
+        else:
+            a = longest_axis(ctx) * 0 + np.eye(3)[int(np.argmin(np.array(ctx['bbox'][1]) - np.array(ctx['bbox'][0])))]
+            cen = (np.array(ctx['bbox'][0]) + np.array(ctx['bbox'][1])) / 2
+        big = {'r': 0.0}
     cen = cen - a * np.dot(cen, a)
     P = _mesh(sku)
     z = P @ a
@@ -128,9 +149,10 @@ def _disc(ctx):
 
 def rule(ctx):
     sku = ctx['sku']
-    if sku.startswith(('2801-', '2810-', '2807-', '1500-', '1520-', '1526-', '1501-', '1516-', '1523-', '1504-', '1505-', '1506-', '1517-', '1531-', '2904-')):
+    if sku.startswith(('2801-', '2810-', '2807-', '1500-', '1520-', '1526-', '1501-', '1516-', '1523-', '1504-', '1505-', '1506-', '1517-', '1531-', '2904-',
+                       '1502-', '1503-', '1514-', '1521-', '1522-', '1529-', '1530-', '3900-', '2806-', '2809-', '2805-', '2816-')):
         return _disc(ctx)
-    if sku.startswith(('2800-', '2802-')):
+    if sku.startswith(('2800-', '2802-', '2804-', '2813-', '2822-')):
         return _screw(ctx)
     if sku.startswith(('2811-', '2812-')):
         return _nut(ctx)
