@@ -19,7 +19,7 @@ export function Tip({ label, keys, children, side = 'bottom' }: { label: string;
 type BtnProps = ButtonHTMLAttributes<HTMLButtonElement> & { active?: boolean; tone?: 'default' | 'accent' | 'danger' | 'ghost' };
 
 export function Btn({ active, tone = 'default', className = '', children, ...rest }: BtnProps) {
-  const base = 'inline-flex items-center gap-1.5 rounded-md text-[12.5px] font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none select-none';
+  const base = 'inline-flex items-center gap-1.5 whitespace-nowrap rounded-md text-[12.5px] font-medium transition-colors disabled:opacity-40 disabled:pointer-events-none select-none';
   const tones = {
     default: active ? 'bg-accent-soft text-accent ring-1 ring-accent/40' : 'text-ink hover:bg-panel-2',
     accent: 'bg-accent text-white hover:bg-accent-hover shadow-sm',

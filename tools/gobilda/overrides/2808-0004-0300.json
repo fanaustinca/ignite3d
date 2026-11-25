@@ -1,0 +1,45 @@
+{
+ "male": [
+  {
+   "id": "endA",
+   "type": "m4_hole",
+   "position": [
+    0.0,
+    -150.1833,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    1.0,
+    0.0
+   ],
+   "upVector": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "male": true
+  },
+  {
+   "id": "endB",
+   "type": "m4_hole",
+   "position": [
+    0.0,
+    150.1458,
+    0.0
+   ],
+   "normal": [
+    0.0,
+    -1.0,
+    0.0
+   ],
+   "upVector": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "male": true
+  }
+ ],
+ "notes": "M4 threaded rod L=300.3: male m4 at both ends (normals inward = insertion direction)"
+}

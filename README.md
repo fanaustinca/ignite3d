@@ -22,16 +22,30 @@
   joint, the head always lands on the exposed outer face (never inside a wall), and the locknut is added.
 - **Move arrows + rotation rings** on the selection: drag a ring to turn the part about X / Y / Z, snapping
   in 45° steps (15° / 90° / free in the toolbar). `R` turns 90° about the mated hole axis.
-- **1,084 real goBILDA parts** converted from goBILDA's own STEP files — everything in goBILDA's kits and bundles
+- **1,180 real goBILDA parts** converted from goBILDA's own STEP files — everything in goBILDA's kits and bundles
   (FTC Starter Kit, Strafer, BeeLine, U-channel/goRAIL/beam bundles, motion starter packs…) plus popular series: U-channels (incl. the real slot / oval hole
   pattern), low-side & mini channels, goRAIL, beams, grid plates, quad blocks & mounts, clamping mounts, pillow
   blocks, Yellow Jacket motors (5202/5203/5204), servos & ServoBlocks, REX / D shafts, hubs, collars, bearings,
-  gears, pulleys, Viper-Slide kits, mecanum / Gecko / Rhino / omni wheels, screws, nuts, washers, standoffs and
+  gears, pulleys, sprockets, the gear-driven turret, Viper-Slide extrusions, odometry pods, control arms & discs, CV joints, hinges,
+  ball links, tubes, threaded rods, mecanum (incl. GripForce Vector intake) / Gecko / Rhino / omni / Wasteland wheels, screws, nuts, washers, standoffs and
   spacers. Real names, per-piece prices and masses (goBILDA weights, or real volume × material density).
 - **Snap points measured from the real geometry:** every M4 clearance hole, threaded hole, slot end (and every
   1 mm along true sliding slots), 14 mm bearing bore, REX / D bore and shaft end — verified part by part with
   renders and with OpenCascade fit checks (two real solids snapped together must not intersect).
+- **Robot Check (`K`):**
+  - **Collision detection** on the real goBILDA meshes, live while you build: parts that pass through each
+    other turn red, with a marker at the overlap, a toolbar badge and a toast. Flush faces, screws in their
+    holes and shafts in their bores are expected and ignored. The test is surface samples sitting more than
+    0.4 mm inside another part's material, with shared hole axes excluded.
+  - **Structure:** every bolted joint is rated by its screws (none = loose, one = pivots, two or more =
+    fastened). It also flags screws with no nut and no threaded hole, shafts with no bearing (or only one
+    bearing while carrying a wheel or gear), parts not attached to the robot, and long cantilevers.
+  - **Stability:** support polygon from the real ground contacts and the centre-of-gravity height give the
+    tip-over angle and the braking/turning acceleration (in g) that would tip the robot.
+  - Click any finding to select the parts and fly the camera to it. This is a rule-based check, not a stress
+    simulation.
 - **FTC overlays:** 18″ sizing cube (turns red when you are too big), live weight in g/lb, center of gravity.
+- **Request a part / send feedback:** links in the toolbar, the parts list and Help open the team's Google Forms.
 - **Onshape-ready export:** STEP AP214 assembly — one instance per part, exact placement, millimetres, Z-up —
   containing **goBILDA's exact B-rep geometry** for each part (fetched on demand from the
   [ignite3d-cad](https://github.com/fanaustinca/ignite3d-cad) data site), so Onshape gets the real parts. Also STL, GLB
@@ -40,6 +54,10 @@
   show what differs ("19.2:1 · 312 RPM", "5 Hole · 144 mm"), and a hover card with a rendered thumbnail, SKU,
   price and weight. Yellow Jacket motors are coloured from their real sub-parts (yellow sleeve, black encoder
   cap, dark gearbox, steel shaft).
+- **Cloud files (Firebase):** the cloud button saves the build online under a **6-digit access code**. Anyone with
+  the code (or the `?cad=123456` link) can open and edit it. Every change auto-saves to Firestore and streams live to
+  everyone who has the file open; the last write wins. Codes are remembered in localStorage, so each one is typed once,
+  and the last open file reopens on load. See [Cloud setup](#cloud-setup-firebase).
 - **Autosave** to IndexedDB + localStorage on every change and on reload/close, with a "Saved" indicator; if a
   big build is cleared, the empty scene offers to restore it.
 - **BOM** with CSV download, **share links** (`#build=…`, compressed in the URL), undo/redo, grouping,
@@ -49,6 +67,23 @@
 - **Custom parts:** upload `.glb`/`.stl`, click to tag holes (auto-centres on round holes, detects
   through-thickness, one-click 16 mm 4-hole stamp), save to your browser, export a `{sku}.glb + {sku}.json`
   bundle or open a pre-filled GitHub issue to add it to the catalog.
+
+## Cloud setup (Firebase)
+
+1. In the [Firebase console](https://console.firebase.google.com), create a project (Analytics is not needed).
+2. **Build → Firestore Database → Create database** (production mode, any region).
+3. **Firestore → Rules:** paste [`firestore.rules`](firestore.rules) and publish. Anyone can read or write a file
+   whose code they know. Listing the collection is denied, so codes can't be enumerated, and nothing can be deleted.
+4. **Project settings → Your apps → Web (`</>`):** register an app (no Hosting needed) and copy the `firebaseConfig`
+   values into `PASTE_HERE` in [`src/config/firebase.ts`](src/config/firebase.ts). These are public identifiers, so
+   committing them is fine. Alternatively, set `VITE_FIREBASE_API_KEY`, `VITE_FIREBASE_AUTH_DOMAIN`,
+   `VITE_FIREBASE_PROJECT_ID`, `VITE_FIREBASE_STORAGE_BUCKET`, `VITE_FIREBASE_MESSAGING_SENDER_ID` and
+   `VITE_FIREBASE_APP_ID` at build time.
+5. Push. The Cloud button switches from "not connected" to working.
+
+Each file is one document `cad/{code}` holding the lz-string-compressed build (under 1 MB, which is about 10,000
+parts). Custom parts stay in each browser. For local testing without Firebase, add `?cloudmock` to the URL: it uses
+a localStorage backend that syncs between tabs.
 
 ## Parts pipeline (GitHub + jsDelivr, zero backend)
 
@@ -84,7 +119,8 @@ custom upload, CDN mesh upgrade). If an OpenCascade Python (`pythonocc-core`) is
 
 - 4 very large assemblies (the 104 mm and 140 mm mecanum wheels and two Viper-Slide kits) have no exact STEP
   fragment (> 15 MB compressed) and export as bounding-box placeholders; they still render and snap with the real mesh.
-- goBILDA ships one handedness of each mecanum wheel; Mirror makes a mirrored *placement*, not chiral geometry.
+- Left/right part pairs (mecanum, Vector intake wheels) swap to their partner on Mirror; parts goBILDA ships in only one
+  handedness get a mirrored *placement*, not chiral geometry.
 - Excluded (not single parts in goBILDA's STEP): bundles, the 1523 standoff assembly, the 2:1 bevel gear sets, roller packs.
 - Some joints still show small overlaps in fit checks (REX-in-REX zero-clearance fits, Gecko-on-hub, Viper-Slide
   hardware below its mounting plane) — see `tools/gobilda/review/`.

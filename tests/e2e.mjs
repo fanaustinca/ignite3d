@@ -389,6 +389,66 @@ await test('18" cube turns red when the robot is too big', async () => {
   await page.keyboard.press('c');
 });
 
+await test('Robot Check: example is clean; a part pushed into another is flagged live; missing screws reported', async () => {
+  await st(() => window.__ignite.loadExample());
+  await sleep(300);
+  const r = await st(async () => {
+    const x = await window.__ignite.check.run();
+    return { col: x.collisions.length, score: x.report.score, stab: x.report.stability, bad: x.report.issues.filter((i) => i.level !== 'info').map((i) => i.title) };
+  });
+  assert(r.col === 0, `example collisions: ${r.col}`);
+  assert(r.score.loose === 0 && r.score.weak === 0 && r.score.joints >= 12, JSON.stringify(r.score));
+  assert(r.score.attached === r.score.parts, 'all attached');
+  assert(r.stab.ok && r.stab.tipAngleDeg > 45, `tip ${r.stab.tipAngleDeg}`);
+  assert(r.bad.length === 0, r.bad.join(', '));
+  await page.click('[data-testid="open-check"]');
+  await page.waitForSelector('[data-testid="check-panel"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid="chip-collisions"]')?.textContent?.startsWith('0'));
+  // live: drop a motor straight into a cross member -> red badge + status bar warning within a second or two
+  await st(() => {
+    const s = window.__ignite.store.getState();
+    const cross = s.instances.filter((i) => i.sku === '1120-0013-0336').sort((a, b) => b.position[1] - a.position[1])[0]; // cross member sits on top of the rails
+    s.addInstance({ sku: '5203-2402-0019', position: [cross.position[0], cross.position[1], 0], quaternion: [0, 0, 0, 1] });
+  });
+  await page.waitForSelector('[data-testid="collision-badge"]', { timeout: 15000 });
+  const live = await st(() => window.__ignite.check.state().collisions.map((c) => [c.skuA, c.skuB].sort().join('×')));
+  assert(live.length >= 1 && live.every((k) => k.includes('5203-2402-0019')), live.join(', '));
+  assert(!!(await page.$('[data-testid="status-collisions"]')), 'status bar warning');
+  await page.click('[data-testid="collision-row"]');
+  await sleep(500);
+  await shot('09-check-collision');
+  // undo removes it again
+  await page.keyboard.down('Control');
+  await page.keyboard.press('z');
+  await page.keyboard.up('Control');
+  await page.waitForFunction(() => !document.querySelector('[data-testid="collision-badge"]'), { timeout: 15000 });
+  // pull every screw out of one cross member joint -> loose joint error with both parts named
+  const loose = await st(async () => {
+    const s = window.__ignite.store.getState();
+    const cross = s.instances.filter((i) => i.sku === '1120-0013-0336').sort((a, b) => b.position[1] - a.position[1])[0]; // cross member sits on top of the rails
+    const near = (i) => Math.hypot(i.position[0] - cross.position[0], i.position[2] - -144) < 40 && i.position[1] > 60;
+    s.setInstances(s.instances.filter((i) => !((i.sku.startsWith('2800-') || i.sku.startsWith('2812-')) && near(i))));
+    const x = await window.__ignite.check.run();
+    return { score: x.report.score, titles: x.report.issues.map((i) => i.title) };
+  });
+  assert(loose.score.loose >= 1, JSON.stringify(loose.score));
+  assert(loose.titles.includes('Joint has no screws'), loose.titles.join(', '));
+  await sleep(400);
+  await page.waitForFunction(() => [...document.querySelectorAll('[data-testid="check-issue"]')].some((e) => e.dataset.kind === 'joint'), { timeout: 10000 });
+  await shot('09b-check-loose');
+  await page.click('[data-testid="open-check"]');
+  await st(() => window.__ignite.loadExample());
+});
+
+await test('part request + feedback forms are linked from the toolbar, sidebar and help', async () => {
+  const hrefs = await page.evaluate(() => ['part-request-link', 'feedback-link', 'sidebar-part-request'].map((t) => document.querySelector(`[data-testid="${t}"]`)?.getAttribute('href')));
+  assert(hrefs[0] === 'https://forms.gle/TrPgVy1aFunzSN5T7' && hrefs[2] === hrefs[0], `part request ${hrefs}`);
+  assert(hrefs[1] === 'https://forms.gle/tPRVA9Vuo9yJCJH8A', `feedback ${hrefs[1]}`);
+  await page.click('[data-testid="open-help"]');
+  await page.waitForSelector('[data-testid="help-feedback"]');
+  await page.keyboard.press('Escape');
+});
+
 await test('mirror makes a mirrored copy across the left/right plane', async () => {
   const motor = await st(() => window.__ignite.store.getState().instances.find((i) => i.sku.startsWith('5203-')));
   const n0 = await st(() => window.__ignite.store.getState().instances.length);
@@ -662,6 +722,88 @@ await test('autosave: the build survives a reload', async () => {
   await page.waitForSelector('[data-testid="restore-backup"]', { timeout: 5000 });
   await page.click('[data-testid="restore-backup"]');
   assert((await st(() => window.__ignite.store.getState().instances.length)) === before, 'backup restored');
+});
+
+await test('cloud files: 6-digit code, autosave online, live sync between computers, code remembered', async () => {
+  const seed = await st(() => window.__ignite.store.getState().instances.slice(0, 3));
+  const gs = (p, fn, ...a) => p.evaluate(fn, ...a);
+  const n = (p) => gs(p, () => window.__ignite.store.getState().instances.length);
+  const until = async (fn, ms = 6000) => {
+    const t0 = Date.now();
+    while (Date.now() - t0 < ms) {
+      if (await fn()) return true;
+      await sleep(150);
+    }
+    return false;
+  };
+  const pA = await newPage({ fresh: false });
+  await pA.goto(URL0, { waitUntil: 'load' });
+  await pA.evaluate(() => {
+    localStorage.setItem('ignite3d-cloud-mock', '1');
+    for (const k of Object.keys(localStorage)) if (k.startsWith('ignite3d-mockcad:') || k.startsWith('ignite3d-cloud-')) k !== 'ignite3d-cloud-mock' && localStorage.removeItem(k);
+  });
+  await pA.reload({ waitUntil: 'load' });
+  await sleep(600);
+  await pA.evaluate((list) => window.__ignite.store.getState().setInstances(list), seed);
+  await pA.click('[data-testid="open-cloud"]');
+  await pA.waitForSelector('[data-testid="cloud-new-name"]');
+  await pA.type('[data-testid="cloud-new-name"]', 'Test bot');
+  await pA.click('[data-testid="cloud-create"]');
+  await pA.waitForSelector('[data-testid="cloud-code"]');
+  const code = await pA.$eval('[data-testid="cloud-code"]', (e) => e.textContent.trim());
+  assert(/^\d{6}$/.test(code), `code ${code}`);
+  const doc = await pA.evaluate((c) => JSON.parse(localStorage.getItem('ignite3d-mockcad:' + c)), code);
+  assert(doc.parts === 3 && doc.name === 'Test bot', `online doc ${doc.parts} ${doc.name}`);
+  await pA.screenshot({ path: join(SHOTS, '30-cloud-modal.png') });
+  await pA.keyboard.press('Escape');
+
+  // second "computer" opens the share link
+  const pB = await newPage({ fresh: false });
+  await pB.goto(`${URL0}?cad=${code}`, { waitUntil: 'load' });
+  assert(await until(async () => (await gs(pB, () => window.__ignite.cloud.getState().code)) === code), 'B opened the code');
+  assert((await n(pB)) === 3, `B has ${await n(pB)} parts`);
+  assert(!(await pB.evaluate(() => location.search.includes('cad='))), 'code removed from the address bar');
+
+  // A moves a part -> B sees it live
+  const moved = await pA.evaluate(() => {
+    const s = window.__ignite.store.getState();
+    const i = s.instances[0];
+    s.updateTransforms({ [i.instanceId]: { position: [i.position[0] + 50, i.position[1], i.position[2]], quaternion: i.quaternion } });
+    return { id: i.instanceId, x: i.position[0] + 50 };
+  });
+  assert(
+    await until(async () => (await gs(pB, (id) => window.__ignite.store.getState().instances.find((i) => i.instanceId === id)?.position[0], moved.id)) === moved.x),
+    'move synced A -> B',
+  );
+  assert((await gs(pB, () => window.__ignite.store.temporal.getState().pastStates.length)) === 0, 'remote changes are not in B’s undo history');
+  // B adds a part -> A gets it
+  await pB.evaluate((i) => window.__ignite.store.getState().addInstances([{ ...i, instanceId: 'fromB', position: [0, 300, 0] }]), seed[0]);
+  assert(await until(async () => (await n(pA)) === 4), 'add synced B -> A');
+  assert(await until(async () => (await gs(pA, () => window.__ignite.cloud.getState().status)) === 'saved'), 'A status saved');
+
+  // reload: the code is remembered, no typing needed
+  await pB.reload({ waitUntil: 'load' });
+  assert(await until(async () => (await gs(pB, () => window.__ignite.cloud.getState().code)) === code && (await n(pB)) === 4), 'B reopened the file after reload');
+  await pB.waitForSelector('[data-testid="cloud-indicator"]');
+
+  // stop syncing, then reopen by typing the code; a wrong code is refused
+  await pB.click('[data-testid="open-cloud"]');
+  await pB.waitForSelector('[data-testid="cloud-leave"]');
+  await pB.click('[data-testid="cloud-leave"]');
+  await pB.waitForSelector('[data-testid="cloud-create"]');
+  assert((await pB.$$('[data-testid="cloud-recent"]')).length === 1, 'remembered list');
+  await pB.type('[data-testid="cloud-code-input"]', '000001');
+  await pB.click('[data-testid="cloud-open"]');
+  await pB.waitForSelector('[data-testid="cloud-error"]');
+  await pB.click('[data-testid="cloud-code-input"]', { clickCount: 3 });
+  await pB.type('[data-testid="cloud-code-input"]', code);
+  await pB.click('[data-testid="cloud-open"]');
+  assert(await until(async () => (await gs(pB, () => window.__ignite.cloud.getState().code)) === code), 'reopened by typing the code');
+  await pA.close();
+  await pB.close();
+  await page.evaluate(() => {
+    for (const k of Object.keys(localStorage)) if (k.startsWith('ignite3d-mockcad:') || k.startsWith('ignite3d-cloud-')) localStorage.removeItem(k);
+  });
 });
 
 await test('no uncaught errors in the page', async () => {

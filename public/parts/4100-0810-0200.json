@@ -1,0 +1,1 @@
+{"sku":"4100-0810-0200","snapPoints":[{"id":"borea","type":"rex_8mm","position":[0.0,-100.0,0.0],"normal":[0.0,-1,0.0],"depth":200.0,"holeId":"bore","upVector":[0.86603,0.0,0.5]},{"id":"boreb","type":"rex_8mm","position":[0.0,100.0,0.0],"normal":[0.0,1,0.0],"depth":200.0,"holeId":"bore","upVector":[0.86603,0.0,0.5]}]}

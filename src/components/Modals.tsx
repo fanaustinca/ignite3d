@@ -1,3 +1,4 @@
+import { FEEDBACK_FORM, PART_REQUEST_FORM } from '../config/links';
 import { useMemo, useState } from 'react';
 import { Check, Copy, Download, ExternalLink, FileJson, FolderOpen, Github, RefreshCw, Trash2 } from 'lucide-react';
 import { useCadStore } from '../store/useCadStore';
@@ -40,6 +41,7 @@ const SHORTCUTS: [string, string][] = [
   ['Ctrl+S', 'Save build (.json)'],
   ['.', 'Zoom to fit'],
   ['Esc', 'Stop placing / leave tool / clear selection'],
+  ['K', 'Robot Check (collisions, joints, stability)'],
   ['?', 'This help'],
 ];
 
@@ -84,7 +86,8 @@ export function HelpModal() {
               ['Pick a part', 'Click any part in the left catalog. A see-through orange “ghost” follows your mouse. The first part lands on the floor grid.'],
               ['Snap it', 'Move over a part you already placed. Coloured rings show the holes it can mate with; the pulsing ring is the one it will snap to. Click to place. R rotates 90°, Tab tries another hole on the new part.'],
               ['Fasten it', 'Press J (Fasten Joint) to add screws + nylon locknuts to every aligned joint — screw lengths are picked from the plate thickness. Or press F and click individual holes, or drop a screw from the catalogue onto a hole: its length is fixed up to fit, the head always goes on the outside and a locknut is added when needed.'],
-              ['Check it', 'B shows the 18″ starting cube (turns red if you are too big). C shows the center of gravity. Weight and cost are in the bottom bar; BOM lists every SKU.'],
+              ['Check it', 'K opens Robot Check: parts that pass through each other turn red (checked live as you build), joints without enough screws, screws without nuts, shafts without bearings, loose parts, and how far the robot can tilt before it tips. B shows the 18″ cube, C the center of gravity; BOM lists every SKU.'],
+              ['Save it online', 'The cloud button gives your robot a 6-digit code. Every change saves online and shows up live for teammates who open the same code. Type a code once and this browser remembers it.'],
               ['Export it', 'Export → STEP Assembly, then in Onshape: Create → Assembly… or Import (cloud icon) the .step file. Every part keeps its SKU name and exact position.'],
             ].map(([t, d], i) => (
               <li key={t} className="flex gap-3">
@@ -106,6 +109,15 @@ export function HelpModal() {
                 </span>
               ))}
             </div>
+          </div>
+          <div className="flex flex-wrap gap-x-4 gap-y-1 rounded-lg border border-line p-3 text-[12.5px]">
+            <span className="text-muted">Missing a part, or found a bug?</span>
+            <a className="font-medium text-accent hover:underline" href={PART_REQUEST_FORM} target="_blank" rel="noopener noreferrer" data-testid="help-part-request">
+              Request a part →
+            </a>
+            <a className="font-medium text-accent hover:underline" href={FEEDBACK_FORM} target="_blank" rel="noopener noreferrer" data-testid="help-feedback">
+              Send feedback →
+            </a>
           </div>
           <div className="flex gap-2">
             <Btn

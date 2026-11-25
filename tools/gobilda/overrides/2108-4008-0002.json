@@ -1,0 +1,170 @@
+{
+ "removeSnapIds": [
+  "h3a",
+  "h3b",
+  "h7b",
+  "h8a",
+  "h8b",
+  "h9a",
+  "h9b",
+  "h10a",
+  "h11b"
+ ],
+ "addSnaps": [
+  {
+   "up": [
+    0.95181,
+    0.0,
+    0.3067
+   ],
+   "id": "borea",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    -5.4281,
+    0.0
+   ],
+   "n": [
+    0.0,
+    -1,
+    0.0
+   ],
+   "depth": 9.728,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "up": [
+    0.95181,
+    0.0,
+    0.3067
+   ],
+   "id": "boreb",
+   "type": "rex_8mm",
+   "p": [
+    0.0,
+    4.3002,
+    0.0
+   ],
+   "n": [
+    0.0,
+    1,
+    0.0
+   ],
+   "depth": 9.728,
+   "tapped": false,
+   "holeId": "bore",
+   "full": true
+  },
+  {
+   "id": "mh3a",
+   "type": "m4_hole",
+   "p": [
+    2.9396,
+    4.8478,
+    -21.742
+   ],
+   "n": [
+    0.4113,
+    -0.9089,
+    0.0693
+   ],
+   "depth": 0.4533,
+   "tapped": false,
+   "holeId": "h3",
+   "full": false
+  },
+  {
+   "id": "mh3b",
+   "type": "m4_hole",
+   "p": [
+    2.7532,
+    5.2598,
+    -21.7734
+   ],
+   "n": [
+    -0.4113,
+    0.9089,
+    -0.0693
+   ],
+   "depth": 0.4533,
+   "tapped": false,
+   "holeId": "h3",
+   "full": false
+  },
+  {
+   "id": "mh7b",
+   "type": "m4_hole",
+   "p": [
+    2.5646,
+    -1.1578,
+    -22.5128
+   ],
+   "n": [
+    0.5165,
+    0.8059,
+    0.2894
+   ],
+   "depth": 0.6627,
+   "tapped": true,
+   "holeId": "h7",
+   "full": false
+  },
+  {
+   "id": "mh8b",
+   "type": "m4_hole",
+   "p": [
+    -9.0092,
+    -5.9592,
+    26.9626
+   ],
+   "n": [
+    -0.2369,
+    -0.1628,
+    0.9578
+   ],
+   "depth": 11.95,
+   "tapped": true,
+   "holeId": "h8",
+   "full": true
+  },
+  {
+   "id": "mh10a",
+   "type": "m4_hole",
+   "p": [
+    -2.1689,
+    -3.0652,
+    -10.1247
+   ],
+   "n": [
+    -0.5523,
+    -0.7252,
+    0.4112
+   ],
+   "depth": 3.1915,
+   "tapped": true,
+   "holeId": "h10",
+   "full": false
+  },
+  {
+   "id": "mh11b",
+   "type": "m4_hole",
+   "p": [
+    1.9812,
+    3.379,
+    -7.9981
+   ],
+   "n": [
+    0.2478,
+    0.5158,
+    0.8201
+   ],
+   "depth": 3.1915,
+   "tapped": true,
+   "holeId": "h11",
+   "full": false
+  }
+ ],
+ "notes": "normalised: seam/thread duplicates merged to outermost face; bore rex_8mm added from SKU bore code (REX hex bores are not cylinders in the STEP); part y span -9.49..9.49"
+}

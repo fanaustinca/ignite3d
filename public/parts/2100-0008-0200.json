@@ -1,0 +1,1 @@
+{"sku":"2100-0008-0200","snapPoints":[{"id":"endA","type":"rex_8mm","position":[0.0,-100.0,0.0],"normal":[0.0,1.0,0.0],"male":true,"upVector":[1.0,0.0,0.0]},{"id":"endB","type":"rex_8mm","position":[0.0,100.0,0.0],"normal":[0.0,-1.0,0.0],"male":true,"upVector":[1.0,0.0,0.0]}]}

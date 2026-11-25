@@ -6,6 +6,10 @@ import { StatusBar } from './components/StatusBar';
 import { Toasts } from './components/Toasts';
 import { BomModal, ExportModal, HelpModal, SettingsModal, ShareModal } from './components/Modals';
 import { UploadStudio } from './components/UploadStudio';
+import { CheckPanel } from './components/CheckPanel';
+import { CloudModal } from './components/CloudModal';
+import { startCloud, useCloudStore } from './services/cloud';
+import { runRobotCheck, startRobotCheck, useCheckStore } from './services/robotCheck';
 import { Viewport, viewportBus } from './viewport/Viewport';
 import { redo, undo, useCadStore } from './store/useCadStore';
 import { loadFullCatalog, proceduralVisual, pruneMeshCache } from './services/assetLoader';
@@ -23,6 +27,9 @@ import { APP_VERSION } from './version';
 import { loadBackup, loadBuild, loadBuildSync, saveBuild } from './services/autosave';
 import type { PlacedInstance } from './types/cad';
 
+
+// read before useBoot strips the hash: a share link must not be replaced by the last cloud file
+const OPENED_SHARE = /build=/.test(location.hash);
 
 function useBoot() {
   useEffect(() => {
@@ -213,6 +220,11 @@ function useShortcuts() {
         case 'c':
           st.set({ showCoG: !st.showCoG });
           return;
+        case 'k': {
+          const cs = useCheckStore.getState();
+          cs.set({ open: !cs.open, focus: null });
+          return;
+        }
       }
     };
     window.addEventListener('keydown', onKey);
@@ -222,12 +234,21 @@ function useShortcuts() {
 
 // Small test/automation hook (used by the headless QA suite).
 (window as unknown as Record<string, unknown>).__ignite = {
+  cloud: useCloudStore,
   version: APP_VERSION,
   store: useCadStore,
   undo,
   redo,
   buildExampleRobot: () => buildExampleRobot(useCadStore.getState().catalog),
   loadExample: () => loadExample(),
+  check: {
+    run: () => runRobotCheck(),
+    state: () => {
+      const c = useCheckStore.getState();
+      return { collisions: c.collisions, report: c.report, live: c.live, fresh: c.collisionsFresh, running: c.running };
+    },
+    store: useCheckStore,
+  },
   ensureSnaps: (skus: string[]) => ensureAllSnaps(skus),
   exports: {
     step: () => buildStep(useCadStore.getState().instances, useCadStore.getState().catalog),
@@ -255,6 +276,8 @@ function useShortcuts() {
 };
 
 export default function App() {
+  useEffect(() => startRobotCheck(), []);
+  useEffect(() => startCloud({ openedShare: OPENED_SHARE }), []);
   useBoot();
   useTheme();
   useShortcuts();
@@ -266,6 +289,7 @@ export default function App() {
         <Sidebar />
         <main className="relative min-w-0 flex-1">
           <Viewport />
+          <CheckPanel />
         </main>
         <Inspector />
       </div>
@@ -273,6 +297,7 @@ export default function App() {
       <Toasts />
       {modal === 'help' && <HelpModal />}
       {modal === 'share' && <ShareModal />}
+      {modal === 'cloud' && <CloudModal />}
       {modal === 'bom' && <BomModal />}
       {modal === 'export' && <ExportModal />}
       {modal === 'settings' && <SettingsModal />}

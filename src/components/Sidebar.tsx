@@ -1,3 +1,4 @@
+import { PART_REQUEST_FORM } from '../config/links';
 import { useMemo, useState } from 'react';
 import { ChevronRight, Cloud, HardDrive, Package, Plus, Search, Shapes, Sparkles, Trash2, X } from 'lucide-react';
 import { useCadStore } from '../store/useCadStore';
@@ -308,6 +309,15 @@ export function Sidebar() {
         })}
         {hover && <HoverCard h={hover} />}
         {!filtered.length && <div className="p-4 text-center text-[12.5px] text-muted">{q ? `No parts match “${q}”${kit ? ' in this kit' : ''}.` : 'No parts.'}</div>}
+        <a
+          data-testid="sidebar-part-request"
+          href={PART_REQUEST_FORM}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="mx-1 mt-2 block rounded-md px-2 py-1.5 text-center text-[11.5px] text-muted hover:bg-panel-2 hover:text-accent"
+        >
+          Can’t find a part? <span className="font-medium text-accent">Request it →</span>
+        </a>
       </div>
       <div className="flex items-center gap-3 border-t border-line px-3 py-2 text-[11px] text-muted">
         <Tip label="Parts with real .glb meshes (CDN or cache)" side="top">

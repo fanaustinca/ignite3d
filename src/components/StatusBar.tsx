@@ -2,11 +2,17 @@ import { useMemo } from 'react';
 import { useCadStore } from '../store/useCadStore';
 import { massProps } from '../lib/metrics';
 import { APP_VERSION, TEAM_CREDIT } from '../version';
+import { useCheckStore } from '../services/robotCheck';
+import { useCloudStore } from '../services/cloud';
+import { CloudStatusText } from './CloudModal';
 
 export function StatusBar() {
   const st = useCadStore();
   const m = useMemo(() => massProps(st.instances, st.catalog), [st.instances, st.catalog]);
   const placing = st.placingSku ? st.catalog[st.placingSku] : null;
+  const nCol = useCheckStore((c) => c.collisions.length);
+  const cloudCode = useCloudStore((c) => c.code);
+  const openCheck = () => useCheckStore.getState().set({ open: true });
   let hint: React.ReactNode;
   if (placing)
     hint = (
@@ -39,10 +45,20 @@ export function StatusBar() {
         {hint}
       </div>
       {st.lastSnapInfo && <div className="hidden max-w-[34%] truncate text-ink/80 xl:block" data-testid="snap-info">{st.lastSnapInfo}</div>}
+      {nCol > 0 && (
+        <button type="button" data-testid="status-collisions" onClick={openCheck} className="whitespace-nowrap font-medium text-red-600 hover:underline dark:text-red-400">
+          ⚠ {nCol} collision{nCol > 1 ? 's' : ''}
+        </button>
+      )}
       <div className="num whitespace-nowrap" data-testid="mass-readout">
         {m.count} parts · {(m.grams / 1000).toFixed(2)} kg ({m.lbs.toFixed(2)} lb) · ${m.priceUsd.toFixed(0)}
       </div>
-      {st.instances.length > 0 && (
+      {cloudCode && (
+        <button type="button" data-testid="cloud-indicator" className="whitespace-nowrap hover:underline" onClick={() => st.set({ modal: 'cloud' })} title="Cloud file — click for the code">
+          ☁ <span className="font-mono num">{cloudCode}</span> · <CloudStatusText />
+        </button>
+      )}
+      {st.instances.length > 0 && !cloudCode && (
         <div className="whitespace-nowrap" data-testid="save-state" title="Your build is saved in this browser automatically">
           {st.savedAt ? <span className="text-green-600 dark:text-green-400">● Saved</span> : <span>○ Saving…</span>}
         </div>

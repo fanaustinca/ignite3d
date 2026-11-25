@@ -4,11 +4,13 @@ import { GizmoHelper, GizmoViewcube, Grid, Html, OrbitControls, TransformControl
 import {
   Box3,
   BoxGeometry,
+  BufferGeometry,
   Color,
   DoubleSide,
   EdgesGeometry,
   Group,
   InstancedMesh,
+  Line,
   LineBasicMaterial,
   Material,
   Matrix4,
@@ -34,6 +36,7 @@ import { useVisual } from '../services/visuals';
 import { visualFor } from '../services/assetLoader';
 import { compatible, instanceMatrix, mateTransform, q4, SNAP_COLORS, toQuat, toVec3, v3, worldSnaps, type WorldSnap } from '../lib/snap';
 import { massProps, robotBounds, sizeCheck, SIZE_LIMIT_MM } from '../lib/metrics';
+import { useCheckStore } from '../services/robotCheck';
 
 // ------------------------------------------------------------------ shared registries
 
@@ -43,6 +46,8 @@ export const viewportBus = {
   /** World (mm) -> client pixel coordinates. */
   project: (_p: Vec3) => ({ x: 0, y: 0 }),
   setView: (_pos: Vec3, _target: Vec3) => {},
+  /** Swing the camera to look at a point from the current direction. */
+  focus: (_p: Vec3) => {},
   gizmoDragging: false,
   /** Latest hover hit, exposed for tests and the status bar. */
   hover: null as null | { instanceId: string | null; point: Vec3 },
@@ -952,6 +957,76 @@ function CoGMarker() {
   );
 }
 
+// ------------------------------------------------------------------ robot check overlay
+
+const hitGeo = new SphereGeometry(4.5, 16, 12);
+const issueGeo = new SphereGeometry(3.5, 12, 10);
+const clashMat = new MeshBasicMaterial({ color: '#ef4444', transparent: true, opacity: 0.38, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+const focusMat = new MeshBasicMaterial({ color: '#f59e0b', transparent: true, opacity: 0.3, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -3 });
+
+function ClashPart({ inst, mat }: { inst: PlacedInstance; mat: Material }) {
+  const visual = useVisual(inst.sku);
+  if (!visual) return null;
+  return (
+    <group position={inst.position} quaternion={q4(inst.quaternion)} raycast={() => null}>
+      {visual.meshes.map((m, k) => (
+        <mesh key={k} geometry={m.geometry} material={mat} raycast={() => null} renderOrder={5} />
+      ))}
+    </group>
+  );
+}
+
+function CheckOverlay() {
+  const cs = useCheckStore();
+  const instances = useCadStore((s) => s.instances);
+  const byId = useMemo(() => new Map(instances.map((i) => [i.instanceId, i])), [instances]);
+  const clashIds = useMemo(() => new Set(cs.collisions.flatMap((c) => [c.a, c.b])), [cs.collisions]);
+  const focus = new Set((cs.open && cs.focus) || []);
+  const st = cs.open ? cs.report?.stability : null;
+  const hullGeo = useMemo(() => {
+    if (!st || st.hull.length < 2) return null;
+    const pts = st.hull.map(([x, z]) => new Vector3(x, st.groundY + 0.6, z));
+    return new Line(new BufferGeometry().setFromPoints([...pts, pts[0]]), new LineBasicMaterial({ color: '#ff6a13' }));
+  }, [st]);
+  return (
+    <group raycast={() => null}>
+      {[...clashIds].map((id) => {
+        const i = byId.get(id);
+        return i && !i.hidden && !focus.has(id) ? <ClashPart key={`c-${id}`} inst={i} mat={clashMat} /> : null;
+      })}
+      {[...focus].map((id) => {
+        const i = byId.get(id);
+        return i && !i.hidden ? <ClashPart key={`f-${id}`} inst={i} mat={focusMat} /> : null;
+      })}
+      {cs.collisions.slice(0, 200).map((c) => (
+        <mesh key={`p-${c.a}|${c.b}`} geometry={hitGeo} position={c.point} renderOrder={21} raycast={() => null}>
+          <meshBasicMaterial color="#ef4444" depthTest={false} transparent opacity={0.9} />
+        </mesh>
+      ))}
+      {cs.open &&
+        cs.report?.issues
+          .filter((i) => i.point && i.kind !== 'stability' && (i.level === 'error' || i.level === 'warn'))
+          .slice(0, 200)
+          .map((i, k) => (
+            <mesh key={`i-${k}`} geometry={issueGeo} position={i.point!} renderOrder={21} raycast={() => null}>
+              <meshBasicMaterial color={i.level === 'error' ? '#dc2626' : '#f59e0b'} depthTest={false} transparent opacity={0.85} />
+            </mesh>
+          ))}
+      {st && hullGeo && (
+        <>
+          <primitive object={hullGeo} />
+          {st.cog && (
+            <mesh position={[st.cog[0], st.groundY + 0.7, st.cog[2]]} rotation={[-Math.PI / 2, 0, 0]} raycast={() => null}>
+              <ringGeometry args={[5, 9, 28]} />
+              <meshBasicMaterial color={st.ok ? '#ff6a13' : '#ef4444'} side={DoubleSide} />
+            </mesh>
+          )}
+        </>
+      )}
+    </group>
+  );
+}
+
 // ------------------------------------------------------------------ camera helpers
 
 function CameraRig() {
@@ -971,6 +1046,17 @@ function CameraRig() {
         oc.update();
       } else camera.lookAt(...target);
       camera.updateMatrixWorld();
+    };
+    viewportBus.focus = (p: Vec3) => {
+      const oc = controls as unknown as OrbitControlsImpl | null;
+      const t = new Vector3(...p);
+      const from = oc ? oc.target.clone() : new Vector3();
+      const dir = camera.position.clone().sub(from).normalize();
+      camera.position.copy(t).addScaledVector(dir, 320);
+      if (oc) {
+        oc.target.copy(t);
+        oc.update();
+      } else camera.lookAt(t);
     };
     viewportBus.fit = () => {
       const st = useCadStore.getState();
@@ -1024,6 +1110,7 @@ export function Viewport() {
       <SelectionGizmo />
       <SizingCube />
       <CoGMarker />
+      <CheckOverlay />
       <CameraRig />
       <OrbitControls makeDefault enableDamping dampingFactor={0.12} maxDistance={15000} minDistance={20} />
       <GizmoHelper alignment="bottom-right" margin={[72, 72]}>

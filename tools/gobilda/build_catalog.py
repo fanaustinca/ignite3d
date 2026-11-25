@@ -147,6 +147,13 @@ def main():
                 os.remove(gz_path)
             else:
                 step_index[sku] = {k: f[k] for k in ('maxId', 'pd', 'rep', 'origin')}
+    # chiral partners (mecanum / vector intake wheels: Left <-> Right), used by Mirror
+    by_name = {e['name']: e for e in index}
+    for e in index:
+        for a, b in (('Left', 'Right'), ('Right', 'Left')):
+            if re.search(rf'\b{a}\b', e['name']):
+                o = by_name.get(re.sub(rf'\b{a}\b', b, e['name']))
+                if o: e['mirrorSku'] = o['sku']
     json.dump({'skus': sorted(skus_mesh)}, open(os.path.join(PARTS, 'index.json'), 'w'), indent=0)
     json.dump(step_index, open(os.path.join(CAD, 'step-index.json'), 'w'), separators=(',', ':'))
     for f in os.listdir(PARTS):  # never ship fragments in the Pages build

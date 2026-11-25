@@ -35,7 +35,152 @@
    "tapped": false,
    "holeId": "rexbore",
    "full": true
+  },
+  {
+   "id": "web0a",
+   "type": "m4_hole",
+   "p": [
+    12.0,
+    0,
+    11.31371
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web0",
+   "full": true
+  },
+  {
+   "id": "web0b",
+   "type": "m4_hole",
+   "p": [
+    -12.0,
+    0,
+    11.31371
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web0",
+   "full": true
+  },
+  {
+   "id": "web1a",
+   "type": "m4_hole",
+   "p": [
+    12.0,
+    11.31371,
+    0
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web1",
+   "full": true
+  },
+  {
+   "id": "web1b",
+   "type": "m4_hole",
+   "p": [
+    -12.0,
+    11.31371,
+    0
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web1",
+   "full": true
+  },
+  {
+   "id": "web2a",
+   "type": "m4_hole",
+   "p": [
+    12.0,
+    0,
+    -11.31371
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web2",
+   "full": true
+  },
+  {
+   "id": "web2b",
+   "type": "m4_hole",
+   "p": [
+    -12.0,
+    0,
+    -11.31371
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web2",
+   "full": true
+  },
+  {
+   "id": "web3a",
+   "type": "m4_hole",
+   "p": [
+    12.0,
+    -11.31371,
+    0
+   ],
+   "n": [
+    1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web3",
+   "full": true
+  },
+  {
+   "id": "web3b",
+   "type": "m4_hole",
+   "p": [
+    -12.0,
+    -11.31371,
+    0
+   ],
+   "n": [
+    -1.0,
+    0.0,
+    0.0
+   ],
+   "depth": 24.0,
+   "tapped": false,
+   "holeId": "web3",
+   "full": true
   }
  ],
- "notes": "mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000"
+ "notes": "mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | mount_bores: REX bore at [0.0, 0.0] axis x, clearance r 3.50, faces -6.000..6.000 | 4 M4 through-holes (16 mm square at 45 deg = hub pattern) checked by ray cast: air through x=-12..12 at r<2, material at r>2.2 -> snaps on the outer hub faces x=+-12, depth 24. Left STEP detector had put them on the internal 1.5 mm split gap (x=+-0.65); right STEP had none.",
+ "removeSnapIds": []
 }

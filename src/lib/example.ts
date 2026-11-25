@@ -12,7 +12,9 @@ const pick = (cat: Cat, ...skus: string[]) => skus.find((s) => cat[s]) ?? skus[0
 export function exampleSkus(cat: Cat) {
   return {
     RAIL: '1120-0013-0336',
-    CROSS: '1120-0015-0384',
+    // 13 holes = 336 mm: the end bores land on both rails and the ends finish flush with the rails' outer webs
+    // (a longer channel would hang out over the wheels)
+    CROSS: '1120-0013-0336',
     MOTOR: '5203-2402-0019',
     HUB: pick(cat, '1309-0016-4008', '1309-0016-0008'),
     WHEEL_L: pick(cat, '3614-0014-0096', '3601-0014-0096', '3625-0001-0096'),
@@ -101,8 +103,10 @@ export function buildExampleRobot(cat: Cat): PlacedInstance[] {
       void R;
       const shaft = worldSnaps(motor, cat[S.MOTOR]).find((s) => s.snap.male && (s.snap.type === 'rex_8mm' || s.snap.type === 'd_6mm'))!;
       const d = shaft.normal.clone(); // points outward, along the shaft
+      // hub clears the web AND the motor screw heads on its outer face (M4 socket head = 4 mm)
       const webT = 2.5;
-      wheelSpots.push({ hubTarget: { pos: shaft.pos.clone().addScaledVector(d, webT + 0.5), normal: d.clone(), up: anyPerp(d) }, axis: d, side, x });
+      const headH = 4;
+      wheelSpots.push({ hubTarget: { pos: shaft.pos.clone().addScaledVector(d, webT + headH + 1), normal: d.clone(), up: anyPerp(d) }, axis: d, side, x });
     }
   }
 
