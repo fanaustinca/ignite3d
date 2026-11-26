@@ -11,13 +11,15 @@
 import { Box3, Matrix4, Quaternion, Vector3 } from 'three';
 import type { CatalogPart, PlacedInstance } from '../../types/cad';
 import { distToLine, instanceMatrix, q4, v3, worldSnaps, type WorldSnap } from '../snap';
-import { plausibleMesh, spinAxisLocal, spinCentreLocal, toothInfo, type ToothInfo } from './partInfo';
+import { plausibleMesh, spinAxisLocal, spinCentreLocal, toothCentreLocal, toothInfo, type ToothInfo } from './partInfo';
+import { isChainSku, resolveChains, type ResolvedChain } from '../chain';
 
 // ------------------------------------------------------------------ part classes
 const pre = (sku: string, l: string[]) => l.some((p) => sku.startsWith(p));
 export const isScrew = (p: CatalogPart) => pre(p.sku, ['2800-', '2802-', '2804-', '2813-', '2822-']) || (/screw/i.test(p.name) && p.category === 'Fasteners & Spacers' && !/lead screw/i.test(p.name));
 export const isNut = (p: CatalogPart) => /lock ?nut|\bnut\b/i.test(p.name) && !/lead screw|gorail|hurricane/i.test(p.name);
-export const isHardware = (p: CatalogPart) => isScrew(p) || isNut(p) || /washer|set screw|shim|e-clip|retaining ring/i.test(p.name);
+// (a "REX Shaft with E-Clip" is a shaft, not an e-clip)
+export const isHardware = (p: CatalogPart) => isScrew(p) || isNut(p) || (/washer|set screw|shim|e-clip|retaining ring/i.test(p.name) && !/shaft|standoff|spacer/i.test(p.name));
 export const isShaft = (p: CatalogPart) => pre(p.sku, ['2100-', '2101-', '2102-', '2105-', '2106-', '2109-', '2110-', '3501-', '1910-', '1911-', '1922-', '1923-']) || /\bshaft\b/i.test(p.name) && !/motor|coupler|collar|hub(?! shaft)|bearing|spacer/i.test(p.name);
 export const isBearing = (p: CatalogPart) => /^16\d\d-/.test(p.sku) || /bearing|pillow/i.test(p.name);
 export const isMotor = (p: CatalogPart) => p.category === 'Motors & Servos' && /motor/i.test(p.name) && !/mount|bracket|horn|arm|clamp|cable|encoder only/i.test(p.name);
@@ -136,7 +138,15 @@ export interface Rig {
   mass: number;
   cog: Vector3;
   drive: { kind: 'mecanum' | 'tank' | 'omni' | 'x-drive' | 'swerve?' | 'none'; wheels: number; motors: number };
+  /** Chains drawn with the Chain tool, with the bodies of their two sprockets. */
+  chains: { rc: ResolvedChain; a: number; b: number }[];
   notes: string[];
+}
+
+export type RoleOverride = 'spinner' | 'arm';
+export interface RigOptions {
+  /** Per motor / servo instance id: what the user says it is (beats the guess). */
+  roles?: Record<string, RoleOverride>;
 }
 
 class DSU {
@@ -173,11 +183,11 @@ function shaftAxis(n: Node) {
   return { o: v3(n.rp.inst.position), d, lo: b ? b[0][1] : -20, hi: b ? b[1][1] : 20 };
 }
 
-export function buildRig(instances: PlacedInstance[], catalog: Record<string, CatalogPart>): Rig {
+export function buildRig(instances: PlacedInstance[], catalog: Record<string, CatalogPart>, opts: RigOptions = {}): Rig {
   const notes: string[] = [];
   const nodes: Node[] = [];
   for (const inst of instances) {
-    if (inst.hidden) continue;
+    if (inst.hidden || isChainSku(inst.sku)) continue;
     const part = catalog[inst.sku];
     if (!part) continue;
     const m = instanceMatrix(inst);
@@ -210,6 +220,35 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
   });
   const revolute: { a: number; b: number; o: Vector3; d: Vector3 }[] = [];
   const bearingLike = (i: number) => isBearing(nodes[i].rp.part);
+  // a screw through a hole: those two parts really are bolted together
+  const screwBoxes = nodes.filter((n) => isScrew(n.rp.part)).map((n) => n.box.clone().expandByScalar(0.4));
+  const screwed = (p: Vector3) => screwBoxes.some((b) => b.containsPoint(p));
+  // parts that sit on a shaft and can turn (wheels, gears, hubs, spacers, collars…)
+  const ROUNDISH = /hub|spacer|collar|coupler|wheel|roller|gear|sprocket|pulley/i;
+  const roundish = (i: number) => !isShaft(nodes[i].rp.part) && !isMotor(nodes[i].rp.part) && (!!wheelInfo(nodes[i].rp.part) || !!toothInfo(nodes[i].rp.part) || ROUNDISH.test(nodes[i].rp.part.name));
+  const axisCache = new Map<number, { c: Vector3; d: Vector3 }>();
+  const spinLine = (i: number) => {
+    let a = axisCache.get(i);
+    if (!a) {
+      const part = nodes[i].rp.part;
+      const axL = spinAxisLocal(part);
+      a = { c: spinCentreLocal(part, axL).applyMatrix4(nodes[i].m), d: axL.applyQuaternion(nodes[i].q).normalize() };
+      axisCache.set(i, a);
+    }
+    return a;
+  };
+  const boreOn = (j: number, c: Vector3, d: Vector3) => nodes[j].snaps.some((t) => t.snap.type !== 'm4_hole' && !t.snap.male && Math.abs(t.normal.dot(d)) > 0.995 && distToLine(t.pos, c, d) < 1);
+  /**
+   * i turns against j: i is round, j holds a bearing on i's axis (a hub / wheel / spacer stacked against the
+   * plate its shaft runs through spins; it is not bolted to it unless a screw says so).
+   */
+  const spinsAgainst = (i: number, j: number) => {
+    if (!roundish(i) || (roundish(j) && !bearingLike(j))) return false;
+    const { c, d } = spinLine(i);
+    if (!boreOn(j, c, d)) return false;
+    if (bearingLike(j)) return true;
+    return nodes.some((k, ki) => ki !== j && isBearing(k.rp.part) && k.box.intersectsBox(nodes[j].box.clone().expandByScalar(1)) && boreOn(ki, c, d));
+  };
   nodes.forEach((n, i) => {
     if (hw[i]) return;
     for (const s of n.snaps) {
@@ -229,7 +268,13 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
               if (outB && (!BORE.has(s.snap.type) || bearingLike(i))) continue;
               if (outA) rigid.union(outOf.get(i)!, t.i, 'out-contact');
               else if (outB) rigid.union(outOf.get(t.i)!, i, 'out-contact');
-              else rigid.union(i, t.i, 'contact ' + s.snap.type + '/' + t.s.snap.type);
+              else {
+                // a bearing joins things only by its outer flange (seated in a plate / wheel); whatever touches its
+                // inner race turns in it
+                if ((bearingLike(i) && !s.snap.male) || (bearingLike(t.i) && !t.s.snap.male)) continue;
+                if (!screwed(s.pos) && (spinsAgainst(i, t.i) || spinsAgainst(t.i, i))) continue;
+                rigid.union(i, t.i, 'contact ' + s.snap.type + '/' + t.s.snap.type);
+              }
             }
     }
   });
@@ -338,7 +383,9 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
     nodes.forEach((o, j) => {
       if (j === i || hw[j] || !eb.intersectsBox(o.box)) return;
       const ov = eb.clone().intersect(o.box).getSize(new Vector3());
-      const v = (ov.x + 0.1) * (ov.y + 0.1) * (ov.z + 0.1);
+      // a loose part (a stopper, a guide) belongs to the frame near it, not to a roller or shaft spinning past it
+      const spinning = roundish(j) || isShaft(o.rp.part) || isMotor(o.rp.part);
+      const v = (ov.x + 0.1) * (ov.y + 0.1) * (ov.z + 0.1) * (spinning ? 0.02 : 1);
       if (v > bv) (bv = v), (best = j);
     });
     if (best >= 0) {
@@ -418,50 +465,103 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
   }
   // body ids that are welded (no axis) are treated as part of their parent when simulating
 
-  // ---- 7. couplings: gears in mesh, chains / belts between coplanar sprockets / pulleys
+  // ---- 7. couplings: gears / miter gears in mesh, chains (Chain tool, else assumed between coplanar sprockets), belts
   interface Tooth {
     body: number;
+    node: number;
     info: ToothInfo;
     c: Vector3;
     d: Vector3;
   }
+  const nodeIndex = new Map(nodes.map((n, i) => [n.rp.instanceId, i]));
   const teeth: Tooth[] = [];
-  for (const b of bodies)
-    for (const p of b.parts) {
-      const info = toothInfo(p.part);
-      if (!info) continue;
-      const axL = spinAxisLocal(p.part);
-      const m = instanceMatrix(p.inst);
-      teeth.push({ body: b.id, info, c: spinCentreLocal(p.part, axL).applyMatrix4(m), d: axL.applyQuaternion(q4(p.inst.quaternion)).normalize() });
-    }
+  nodes.forEach((n, i) => {
+    const info = toothInfo(n.rp.part);
+    if (!info || hw[i]) return;
+    const axL = spinAxisLocal(n.rp.part);
+    teeth.push({ body: bodyOfNode(i)!, node: i, info, c: toothCentreLocal(n.rp.part, axL).applyMatrix4(n.m), d: axL.applyQuaternion(n.q).normalize() });
+  });
   const couplings: Coupling[] = [];
   const linked = new Set<string>();
+  const turns = (b: number) => !!bodies[b].axis && b !== chassis;
+  // signs: speeds are measured about each body's own joint axis
+  const sgn = (b: number, d: Vector3) => (bodies[b].axis ? Math.sign(bodies[b].axis!.dot(d)) || 1 : 1);
+  let locked = 0;
+  const couple = (A: { body: number; d: Vector3; r: number }, B: { body: number; d: Vector3; r: number }, ratioAbout: number, kind: Coupling['kind']) => {
+    if (A.body === B.body) return;
+    const k = `${Math.min(A.body, B.body)}-${Math.max(A.body, B.body)}`;
+    if (linked.has(k)) return;
+    linked.add(k);
+    if (!turns(A.body) || !turns(B.body)) {
+      // one side is fixed to the frame: the other can't turn either (counts as a note, never breaks the sim)
+      if (turns(A.body) || turns(B.body)) locked++;
+      return;
+    }
+    // ratioAbout: ω_B = ratioAbout · ω_A, each about its own tooth axis d
+    couplings.push({ a: A.body, b: B.body, ratio: ratioAbout * sgn(A.body, A.d) * sgn(B.body, B.d), kind });
+  };
+
+  // chains drawn with the Chain tool
+  const chains: Rig['chains'] = [];
+  const chained = new Set<number>();
+  let dangling = 0;
+  for (const { resolved } of resolveChains(instances, catalog)) {
+    if (!resolved) {
+      dangling++;
+      continue;
+    }
+    const na = nodeIndex.get(resolved.a.inst.instanceId), nb = nodeIndex.get(resolved.b.inst.instanceId);
+    if (na === undefined || nb === undefined) continue;
+    const A = { body: bodyOfNode(na)!, d: resolved.a.d, r: resolved.a.r };
+    const B = { body: bodyOfNode(nb)!, d: resolved.b.d, r: resolved.b.r };
+    chained.add(na).add(nb);
+    chains.push({ rc: resolved, a: A.body, b: B.body });
+    // a chain turns both sprockets the same way: ω_B = (r_A / r_B) ω_A about the shared axis direction
+    couple(A, B, (A.r / B.r) * (Math.sign(A.d.dot(B.d)) || 1), 'chain');
+  }
+  if (dangling) notes.push(`${dangling} chain${dangling > 1 ? 's have' : ' has'} lost a sprocket (moved or deleted) — shown red in the CAD; draw it again with the Chain tool.`);
+
+  let assumed = 0;
   for (let i = 0; i < teeth.length; i++)
     for (let j = i + 1; j < teeth.length; j++) {
       const A = teeth[i], B = teeth[j];
       if (A.body === B.body) continue;
-      const k = `${Math.min(A.body, B.body)}-${Math.max(A.body, B.body)}`;
-      if (linked.has(k)) continue;
       const parallel = Math.abs(A.d.dot(B.d)) > 0.995;
       const off = B.c.clone().sub(A.c);
       const axial = parallel ? off.dot(A.d) : 0;
       const dist = parallel ? off.clone().sub(A.d.clone().multiplyScalar(axial)).length() : off.length();
-      // signs: speeds are measured about each body's own joint axis
-      const sA = bodies[A.body].axis ? Math.sign(bodies[A.body].axis!.dot(A.d)) || 1 : 1;
-      const sB = bodies[B.body].axis ? Math.sign(bodies[B.body].axis!.dot(B.d)) || 1 : 1;
       const same = Math.sign(A.d.dot(B.d)) || 1;
-      if ((A.info.kind === 'gear' || A.info.kind === 'miter') && (B.info.kind === 'gear' || B.info.kind === 'miter') && plausibleMesh(A.info, B.info, dist, parallel) && Math.abs(axial) < 12) {
-        const ratio = A.info.kind === 'miter' ? 1 : -(A.info.r / B.info.r) * same * sA * sB;
-        couplings.push({ a: A.body, b: B.body, ratio, kind: A.info.kind === 'miter' ? 'miter' : 'gear' });
-        linked.add(k);
-      } else if (A.info.kind === B.info.kind && (A.info.kind === 'sprocket' || A.info.kind === 'pulley') && parallel && Math.abs(axial) < 3 && Math.abs(A.info.pitch - B.info.pitch) < 0.01 && dist > A.info.r + B.info.r + 4 && dist < 900) {
-        // nearest coplanar partner only (a chain runs between two sprockets)
-        const closer = teeth.some((C, ci) => ci !== i && ci !== j && C.body !== A.body && C.info.kind === A.info.kind && Math.abs(C.d.dot(A.d)) > 0.995 && Math.abs(C.c.clone().sub(A.c).dot(A.d)) < 3 && C.c.distanceTo(A.c) < dist - 1 && C.c.distanceTo(A.c) > A.info.r + C.info.r + 4);
+      const kA = A.info.kind, kB = B.info.kind;
+      if (kA === 'gear' && kB === 'gear' && plausibleMesh(A.info, B.info, dist, true) && parallel && Math.abs(axial) < 12) {
+        // spur gears turn opposite ways
+        couple({ body: A.body, d: A.d, r: A.info.r }, { body: B.body, d: B.d, r: B.info.r }, -(A.info.r / B.info.r) * same, 'gear');
+      } else if (kA === 'miter' && kB === 'miter' && !parallel && Math.abs(A.d.dot(B.d)) < 0.2) {
+        // miter / bevel gears: axes (nearly) intersect at the apex, teeth meet near it
+        const n = A.d.clone().cross(B.d).normalize();
+        const gap = Math.abs(off.dot(n));
+        if (gap > 3) continue;
+        // apex: closest point of the two axis lines
+        const w0 = A.c.clone().sub(B.c);
+        const b = A.d.dot(B.d), dd = A.d.dot(w0), e = B.d.dot(w0);
+        const den = 1 - b * b;
+        const tA = (b * e - dd) / den, tB = (e - b * dd) / den;
+        const reach = Math.max(A.info.r, B.info.r) * 2.2 + 10;
+        if (Math.abs(tA) > reach || Math.abs(tB) > reach) continue;
+        // with both axes pointing from the apex out to their gear, the gears turn opposite ways about them
+        const oA = A.d.clone().multiplyScalar(Math.sign(-tA) || 1), oB = B.d.clone().multiplyScalar(Math.sign(-tB) || 1);
+        couple({ body: A.body, d: oA, r: A.info.r }, { body: B.body, d: oB, r: B.info.r }, -(A.info.r / B.info.r), 'miter');
+      } else if (kA === kB && (kA === 'sprocket' || kA === 'pulley') && parallel && Math.abs(axial) < 5 && Math.abs(A.info.pitch - B.info.pitch) < 0.01 && dist > A.info.r + B.info.r + 4 && dist < 900) {
+        // no chain drawn: assume one between the nearest coplanar pair (belts are never drawn)
+        if (kA === 'sprocket' && (chained.has(A.node) || chained.has(B.node))) continue;
+        const closer = teeth.some((C, ci) => ci !== i && ci !== j && C.body !== A.body && C.info.kind === kA && Math.abs(C.d.dot(A.d)) > 0.995 && Math.abs(C.c.clone().sub(A.c).dot(A.d)) < 5 && C.c.distanceTo(A.c) < dist - 1 && C.c.distanceTo(A.c) > A.info.r + C.info.r + 4);
         if (closer) continue;
-        couplings.push({ a: A.body, b: B.body, ratio: (A.info.r / B.info.r) * same * sA * sB, kind: A.info.kind === 'sprocket' ? 'chain' : 'belt' });
-        linked.add(k);
+        const before = couplings.length;
+        couple({ body: A.body, d: A.d, r: A.info.r }, { body: B.body, d: B.d, r: B.info.r }, (A.info.r / B.info.r) * same, kA === 'sprocket' ? 'chain' : 'belt');
+        if (kA === 'sprocket' && couplings.length > before) assumed++;
       }
     }
+  if (assumed) notes.push(`Assumed ${assumed} chain${assumed > 1 ? 's' : ''} between sprockets in line — draw ${assumed > 1 ? 'them' : 'it'} with the Chain tool (N) to be sure.`);
+  if (locked) notes.push(`${locked} gear / chain link${locked > 1 ? 's go' : ' goes'} to a part fixed on the frame, so ${locked > 1 ? 'those joints are' : 'that joint is'} held still.`);
 
   // ---- 8. actuators and what they drive
   const actuators: Actuator[] = actuatorNodes.map((ni, k) => {
@@ -516,17 +616,45 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
   };
   let groundY = Infinity;
   for (const n of nodes) groundY = Math.min(groundY, bottomOf(n));
-  const ROUND = /wheel|roller|gear|sprocket|pulley|hub|shaft|spacer|collar|bearing|coupler|clamp|servo arm|spline|axle/i;
+  // a body "spins" (intake roller, transfer, flywheel) when everything on it is centred on its axis; an arm has parts
+  // sticking out to one side
+  const ROUND = /wheel|roller|gear|sprocket|pulley|hub|shaft|spacer|collar|bearing|coupler|clamp|spline|axle/i;
+  const centredOn = (p: RigPart, o: Vector3, d: Vector3) => {
+    const pb = p.part.bounds ? new Box3(v3(p.part.bounds[0]), v3(p.part.bounds[1])).applyMatrix4(instanceMatrix(p.inst)) : null;
+    if (!pb) return ROUND.test(p.part.name);
+    const size = pb.getSize(new Vector3());
+    return distToLine(pb.getCenter(new Vector3()), o, d) < Math.max(4, 0.06 * size.length());
+  };
+  // user overrides: a motor the user says is an intake / arm never drives wheels
+  const overrideOf = (b: RigBody) => (b.drive ? opts.roles?.[actuators[b.drive.actuator].instanceId] : undefined);
+  const INTAKE_WHEEL = /gecko|compliant|intake|flex/i;
+  // bottom of the frame (everything that isn't a wheel): a drive wheel reaches below it, an intake wheel that is
+  // merely flush with it is an intake
+  let frameBottom = Infinity;
+  for (const n of nodes) if (!wheelInfo(n.rp.part) && !isHardware(n.rp.part)) frameBottom = Math.min(frameBottom, n.box.min.y);
+  const floorCandidates: { b: RigBody; p: RigPart }[] = [];
   for (const b of bodies) {
-    b.round = !!b.axis && b.parts.every((p) => isHardware(p.part) || ROUND.test(p.part.name) || p.part.category === 'Wheels');
+    b.round = !!b.axis && b.parts.every((p) => isHardware(p.part) || centredOn(p, b.pivot!, b.axis!));
+    for (const p of b.parts) {
+      const wi = wheelInfo(p.part);
+      if (!wi) continue;
+      const centre = new Vector3().applyMatrix4(instanceMatrix(p.inst));
+      const axle = new Vector3(1, 0, 0).applyQuaternion(q4(p.inst.quaternion)).normalize();
+      if (Math.abs(axle.y) < 0.35 && centre.y - wi.radius < groundY + 6 && (b.axis || b.id !== chassis) && !overrideOf(b) && (!INTAKE_WHEEL.test(p.part.name) || centre.y - wi.radius < frameBottom - 1.5)) floorCandidates.push({ b, p });
+    }
+  }
+  // soft intake wheels on a single shaft near the floor are an intake that reaches the ground, not a drivetrain
+  const floorBodies = new Set(floorCandidates.map((c) => c.b.id));
+  const intakeOnly = floorBodies.size === 1 && floorCandidates.every((c) => INTAKE_WHEEL.test(c.p.part.name));
+  const onFloorIds = new Set(intakeOnly ? [] : floorCandidates.map((c) => c.p.instanceId));
+  for (const b of bodies) {
     for (const p of b.parts) {
       const wi = wheelInfo(p.part);
       if (!wi) continue;
       const m = instanceMatrix(p.inst);
       const centre = new Vector3().applyMatrix4(m);
       const axle = new Vector3(1, 0, 0).applyQuaternion(q4(p.inst.quaternion)).normalize();
-      const onFloor = Math.abs(axle.y) < 0.35 && centre.y - wi.radius < groundY + 6;
-      if (onFloor && (b.axis || b.id !== chassis)) {
+      if (onFloorIds.has(p.instanceId)) {
         const w: RigWheel = { instanceId: p.instanceId, info: wi, centre, axle };
         if (wi.mecanum) {
           // roller axis at the bottom of the wheel, in the part frame: the top roller is (1,0,h)/√2;
@@ -547,14 +675,22 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
   }
 
   // ---- 10. roles + labels
-  const allDriven = (aid: number) => bodies.filter((b) => b.drive?.actuator === aid);
+  const allDriven = (aid: number) => bodies.filter((b) => b.drive?.actuator === aid && b.axis && b.id !== chassis);
+  const jammed: string[] = [];
   for (const a of actuators) {
+    if (a.body !== null && (!bodies[a.body].axis || a.body === chassis)) {
+      // the output got joined to the motor's own mount (a part on the shaft touching the frame without a bearing)
+      jammed.push(a.name.split('(')[0].trim());
+      a.body = null;
+    }
     const driven = allDriven(a.id);
     if (!driven.length) {
       a.role = 'idle';
       continue;
     }
-    if (driven.some((b) => b.wheels.length)) a.role = 'drive';
+    const o = opts.roles?.[a.instanceId];
+    if (o) a.role = o;
+    else if (driven.some((b) => b.wheels.length)) a.role = 'drive';
     else if (a.kind === 'motor' && driven.every((b) => b.round)) a.role = 'spinner';
     else a.role = 'arm';
   }
@@ -573,9 +709,13 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
       const fb = c.z > centre.z + 5 ? 'front' : c.z < centre.z - 5 ? 'back' : '';
       a.label = `Drive ${[fb, side].filter(Boolean).join('-') || ''}`.trim();
     } else if (a.role === 'spinner') {
-      const driven = allDriven(a.id);
-      const hasRollers = driven.some((b) => b.rollers.length);
-      a.label = hasRollers ? `Intake ${++nSpin}` : `Spinner ${++nSpin}`;
+      // the lowest set of rollers picks up from the floor (intake); rollers higher up move elements on (transfer)
+      const lowest = (id: number) => Math.min(...allDriven(id).flatMap((b) => b.rollers.map((r) => r.centre.y)));
+      const rollerSpinners = actuators.filter((x) => x.role === 'spinner' && allDriven(x.id).some((b) => b.rollers.length)).sort((x, y) => lowest(x.id) - lowest(y.id));
+      const k = rollerSpinners.indexOf(a);
+      if (k === 0) a.label = 'Intake';
+      else if (k > 0) a.label = rollerSpinners.length > 2 ? `Transfer ${k}` : 'Transfer';
+      else a.label = `Spinner ${++nSpin}`;
     } else if (a.role === 'arm') a.label = `${a.kind === 'servo' ? 'Servo' : 'Arm'} ${++nArm}`;
     else a.label = `${short} ${++nIdle} (nothing attached)`;
   }
@@ -611,7 +751,8 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
   if (nodes.some((n) => isSlide(n.rp.part))) notes.push('Linear slides are held at their current extension in this beta.');
   const freeJoints = bodies.filter((b) => b.axis && !b.drive && b.id !== chassis).length;
   if (freeJoints) notes.push(`${freeJoints} joint${freeJoints > 1 ? 's turn' : ' turns'} freely with no motor — held still.`);
-  for (const a of actuators) if (a.role === 'idle') notes.push(`${a.name.split('(')[0].trim()}: nothing is mounted on its output.`);
+  for (const j of jammed) notes.push(`${j}: what’s on its shaft is joined to the frame it’s mounted on, so it can’t turn. Is a part on the shaft screwed to, or touching, a plate without a bearing?`);
+  for (const a of actuators) if (a.role === 'idle' && !jammed.includes(a.name.split('(')[0].trim())) notes.push(`${a.name.split('(')[0].trim()}: nothing is mounted on its output.`);
   if (motors.length && kind === 'mecanum') {
     const hands = driveWheels.map((w) => w.info.mecanum);
     if (Math.abs(hands.reduce<number>((s, h) => s + h, 0)) === hands.length) notes.push('All mecanum wheels are the same hand — use 2 Left + 2 Right (rollers form an X seen from above) or it can’t strafe.');
@@ -631,7 +772,7 @@ export function buildRig(instances: PlacedInstance[], catalog: Record<string, Ca
     }
   }
   // tidy: drop empty virtual bodies from the list order but keep ids stable
-  return { bodies, actuators, couplings, groundY, mass, cog, drive: { kind, wheels: driveWheels.length, motors: motors.length }, notes };
+  return { bodies, actuators, couplings, groundY, mass, cog, drive: { kind, wheels: driveWheels.length, motors: motors.length }, chains, notes };
 }
 
 export const rigChassis = (rig: Rig) => rig.bodies.find((b) => b.label === 'Chassis')!;

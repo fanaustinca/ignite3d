@@ -24,6 +24,7 @@ import {
   Sun,
   Undo2,
   Wrench,
+  Link2,
 } from 'lucide-react';
 import { useStore } from 'zustand';
 import { redo, undo, useCadStore } from '../store/useCadStore';
@@ -46,7 +47,7 @@ export function Toolbar() {
   const cloud = useCloudStore();
   const project = useProjectStore((p) => p.list.find((m) => m.id === p.activeId));
   return (
-    <header className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-panel px-2">
+    <header className="flex h-12 shrink-0 items-center gap-0.5 min-[1600px]:gap-1 border-b border-line bg-panel px-2">
       <div className="mr-2 flex items-center gap-2 pl-1">
         <LogoMark size={26} />
         <Wordmark />
@@ -57,7 +58,7 @@ export function Toolbar() {
       <Tip label="Projects — your saved robots">
         <Btn data-testid="open-projects" onClick={() => s.set({ modal: 'projects' })} className="max-w-[170px]">
           <FolderOpen size={16} className="shrink-0" />
-          <span className="hidden truncate min-[1800px]:inline" data-testid="project-current">
+          <span className="hidden truncate min-[2000px]:inline" data-testid="project-current">
             {project?.name ?? 'Projects'}
           </span>
         </Btn>
@@ -74,10 +75,16 @@ export function Toolbar() {
           <span className="hidden min-[1600px]:inline">Fasten</span>
         </Btn>
       </Tip>
+      <Tip label="Chain tool — click two sprockets to run a chain between them" keys="N">
+        <Btn data-testid="tool-chain" active={s.tool === 'chain'} onClick={() => s.set({ tool: s.tool === 'chain' ? 'select' : 'chain', chainFirst: null, placingSku: null })}>
+          <Link2 size={16} />
+          <span className="hidden min-[2000px]:inline">Chain</span>
+        </Btn>
+      </Tip>
       <Tip label="Fasten Joint — auto-screw every aligned joint of the selection (or whole robot)" keys="J">
         <Btn data-testid="fasten-joint" onClick={() => s.fastenJoint()}>
           <Bolt size={16} />
-          <span className="hidden min-[1600px]:inline">Fasten Joint</span>
+          <span className="hidden min-[1700px]:inline">Fasten Joint</span>
         </Btn>
       </Tip>
       <Divider />

@@ -1,6 +1,7 @@
+import { chainKind, isChainSku, resolveChains } from './chain';
 import { Box3, Vector3 } from 'three';
 import type { CatalogPart, PlacedInstance } from '../types/cad';
-import { instanceMatrix } from './snap';
+import { instanceMatrix, v3 } from './snap';
 import { visualFor } from '../services/assetLoader';
 
 export const SIZE_LIMIT_MM = 457.2; // 18 inches
@@ -20,7 +21,7 @@ export function instanceWorldBox(inst: PlacedInstance, part: CatalogPart) {
 export function robotBounds(instances: PlacedInstance[], catalog: Record<string, CatalogPart>) {
   const box = new Box3();
   for (const i of instances) {
-    if (i.hidden || !catalog[i.sku]) continue;
+    if (i.hidden || !catalog[i.sku] || isChainSku(i.sku)) continue;
     box.union(instanceWorldBox(i, catalog[i.sku]));
   }
   return box;
@@ -39,11 +40,22 @@ export function massProps(instances: PlacedInstance[], catalog: Record<string, C
   let price = 0;
   let count = 0;
   const c = new Vector3();
+  const chains = new Map(resolveChains(instances, catalog).map((r) => [r.chain.instanceId, r.resolved]));
   for (const i of instances) {
     if (i.hidden) continue;
     const p = catalog[i.sku];
     if (!p) continue;
     count++;
+    if (isChainSku(i.sku)) {
+      // a chain weighs / costs what its links do
+      const rc = chains.get(i.instanceId);
+      const k = chainKind(i.sku);
+      const n = rc?.links ?? 0;
+      g += n * k.gPerLink;
+      price += (n / k.perPack) * k.price;
+      c.addScaledVector(v3(i.position), n * k.gPerLink);
+      continue;
+    }
     g += p.massGrams;
     price += p.priceUsd;
     const center = partLocalBounds(p).getCenter(new Vector3()).applyMatrix4(instanceMatrix(i));

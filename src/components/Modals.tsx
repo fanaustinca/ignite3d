@@ -28,6 +28,7 @@ const SHORTCUTS: [string, string][] = [
   ['W / E', 'Gizmo: move arrows + rotation rings (drag a ring, snaps to the rotate increment, 45° default) / rotate-only'],
   ['F', 'Smart Fasten tool (click a hole in a joint)'],
   ['J', 'Fasten Joint: auto-screw all aligned joints of the selection'],
+  ['N', 'Chain tool: click two sprockets to run a chain between them'],
   ['M / Shift+M', 'Mirror selection left/right / front/back (mirrored copy)'],
   ['Ctrl+G / Ctrl+Shift+G', 'Group / ungroup sub-assembly'],
   ['H / Alt+H', 'Hide selection / unhide all'],
@@ -88,7 +89,8 @@ export function HelpModal() {
               ['Snap it', 'Move over a part you already placed. Coloured rings show the holes it can mate with; the pulsing ring is the one it will snap to. Click to place. R rotates 90°, Tab tries another hole on the new part.'],
               ['Fasten it', 'Press J (Fasten Joint) to add screws + nylon locknuts to every aligned joint — screw lengths are picked from the plate thickness. Or press F and click individual holes, or drop a screw from the catalogue onto a hole: its length is fixed up to fit, the head always goes on the outside, a locknut is added when needed, and screws stop short where holes cross (quad block corners).'],
               ['Check it', 'K opens Robot Check: parts that pass through each other turn red (checked live as you build), joints without enough screws, screws without nuts, shafts without bearings, loose parts, and how far the robot can tilt before it tips. B shows the 18″ cube, C the center of gravity; BOM lists every SKU.'],
-              ['Test it (beta)', 'L opens Live Test: it finds your motors, what they turn (directly, through gears or chain) and the wheels on the floor, then lets you drive (WASD / gamepad) and run intakes and arms against POLLEN and NECTAR on a few field tiles.'],
+              ['Chain it', 'Press N (Chain tool) and click two sprockets that are in line: a chain loop is drawn round them with the link count, it goes in the BOM as packs, and Live Test turns both sprockets with it. Click the chain name in the status bar to switch plastic / steel.'],
+              ['Test it (beta)', 'L opens Live Test: it finds your motors, what they turn (directly, through gears, miter gears, chain or belt) and the wheels on the floor, then lets you drive (WASD / gamepad) and run intakes, transfers and arms against POLLEN and NECTAR on a few field tiles. Arms stop when they hit the frame or a stopper. If it guesses a motor wrong, set it under Motor roles.'],
               ['Save it online', 'The cloud button gives your robot a 6-digit code. Every change saves online and shows up live for teammates who open the same code. Type a code once and this browser remembers it.'],
               ['Export it', 'Export → STEP Assembly, then in Onshape: Create → Assembly… or Import (cloud icon) the .step file. Every part keeps its SKU name and exact position.'],
             ].map(([t, d], i) => (

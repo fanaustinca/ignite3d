@@ -10,6 +10,7 @@ import {
   DirectionalLight,
   Group,
   HemisphereLight,
+  InstancedMesh,
   Matrix4,
   Mesh,
   MeshStandardMaterial,
@@ -30,7 +31,8 @@ import { useCadStore } from '../store/useCadStore';
 import { ensureMeshes, meshOf } from '../services/robotCheck';
 import { peekVisual, visualFor } from '../services/assetLoader';
 import { instanceMatrix } from '../lib/snap';
-import { buildRig, isHardware, type Actuator, type Rig } from '../lib/drive/rig';
+import { buildRig, isHardware, type Actuator, type Rig, type RoleOverride } from '../lib/drive/rig';
+import { chainKind, chainLinkMatrices, linkGeometry } from '../lib/chain';
 import { ELEMENTS, FIELD_TILES, HALF, loadRapier, MM, Sim, TILE, type Commands, type ElementKind, type Telemetry } from './engine';
 import { Btn } from '../components/ui';
 
@@ -50,6 +52,23 @@ const PAD_LABELS = ['RT / LT', 'D-pad ↑ / ↓', 'RB / LB', 'Y / A', 'X / B'];
 
 type Status = { phase: 'loading' | 'ready' | 'error'; msg: string };
 
+// what the user said each motor is (kept per motor in this browser, so a fix sticks between runs)
+const ROLE_KEY = 'ignite3d-sim-roles';
+function loadRoles(): Record<string, RoleOverride> {
+  try {
+    return JSON.parse(localStorage.getItem(ROLE_KEY) ?? '{}') as Record<string, RoleOverride>;
+  } catch {
+    return {};
+  }
+}
+function saveRoles(r: Record<string, RoleOverride>) {
+  try {
+    localStorage.setItem(ROLE_KEY, JSON.stringify(r));
+  } catch {
+    /* private mode */
+  }
+}
+
 export default function TestDrive() {
   const close = () => useCadStore.getState().set({ modal: null });
   const host = useRef<HTMLDivElement>(null);
@@ -66,6 +85,16 @@ export default function TestDrive() {
   const followRef = useRef(follow);
   followRef.current = follow;
   const spawnRef = useRef<(k: ElementKind, n: number) => void>(() => {});
+  const [roles, setRoles] = useState<Record<string, RoleOverride>>(loadRoles);
+  const setRole = (id: string, role: RoleOverride | null) =>
+    setRoles((cur) => {
+      const next = { ...cur };
+      if (role) next[id] = role;
+      else delete next[id];
+      saveRoles(next);
+      return next;
+    });
+  const rolesKey = JSON.stringify(roles);
 
   // mechanisms the user controls (not the drivetrain)
   const controls = useMemo(() => (rig ? rig.actuators.filter((a) => a.role === 'spinner' || a.role === 'arm') : []), [rig]);
@@ -89,7 +118,7 @@ export default function TestDrive() {
         if (disposed) return;
         setStatus({ phase: 'loading', msg: 'Finding motors, gears and wheels…' });
         const catalog = useCadStore.getState().catalog;
-        const r = buildRig(insts, catalog);
+        const r = buildRig(insts, catalog, { roles: JSON.parse(rolesKey) as Record<string, RoleOverride> });
         setStatus({ phase: 'loading', msg: 'Starting physics…' });
         const RAPIER = await loadRapier();
         if (disposed) return;
@@ -170,6 +199,31 @@ export default function TestDrive() {
           groups.set(b.id, g);
         }
         const S = new Matrix4().makeScale(MM, MM, MM);
+        // chains: links ride round the sprockets as they turn
+        const linkGeo = linkGeometry();
+        const chainMeshes = r.chains.map((c) => {
+          const mesh = new InstancedMesh(linkGeo, new MeshStandardMaterial({ color: chainKind(c.rc.chain.sku).color, metalness: 0.35, roughness: 0.5 }), c.rc.links);
+          mesh.frustumCulled = false;
+          mesh.castShadow = true;
+          scene.add(mesh);
+          return { c, mesh };
+        });
+        const syncChains = (cm: Matrix4) => {
+          for (const { c, mesh } of chainMeshes) {
+            // the frame the sprocket axles are fixed in, and how far the chain has moved (sprocket angle × radius)
+            const ba = r.bodies[c.a], bb = r.bodies[c.b];
+            const lead = sim.moving.get(c.a) ? ba : sim.moving.get(c.b) ? bb : null;
+            const frame = sim.bodyWorld(lead?.parent ?? ba.parent ?? sim.chassisId, cm).clone().multiply(S);
+            let phase = 0;
+            if (lead) {
+              const m = sim.moving.get(lead.id)!;
+              const sp = lead === ba ? c.rc.a : c.rc.b;
+              phase = m.angle * sp.r * (Math.sign(m.axis.dot(sp.d)) || 1) * (lead === ba ? 1 : Math.sign(c.rc.a.d.dot(c.rc.b.d)) || 1);
+            }
+            chainLinkMatrices(c.rc, phase, frame).forEach((m, i) => mesh.setMatrixAt(i, m));
+            mesh.instanceMatrix.needsUpdate = true;
+          }
+        };
 
         // game elements
         const ballGeo = { pollen: new SphereGeometry(ELEMENTS.pollen.r, 22, 14), nectar: new SphereGeometry(ELEMENTS.nectar.r, 24, 16) };
@@ -309,6 +363,7 @@ export default function TestDrive() {
             g.matrix.copy(sim.bodyWorld(id, cm)).multiply(S);
             g.matrixWorldNeedsUpdate = true;
           }
+          syncChains(cm);
           for (const e of sim.elements) {
             const m = balls.get(e.id);
             if (!m) continue;
@@ -366,7 +421,7 @@ export default function TestDrive() {
       cleanup.forEach((f) => f());
       simRef.current = null;
     };
-  }, []);
+  }, [rolesKey]);
 
   const driveLabel = rig ? { mecanum: 'Mecanum', tank: 'Tank / differential', omni: 'Omni', 'x-drive': 'X-drive', 'swerve?': 'Swerve', none: 'No drivetrain found' }[rig.drive.kind] : '';
   const canStrafe = rig && ['mecanum', 'omni', 'x-drive'].includes(rig.drive.kind);
@@ -469,6 +524,7 @@ export default function TestDrive() {
                             {a.role === 'spinner' ? 'toggle' : 'hold'} {pair ? <><Kbd>{pair[0].toUpperCase()}</Kbd><Kbd>{pair[1].toUpperCase()}</Kbd></> : null}
                             {pad && PAD_LABELS[i] ? ` · pad ${PAD_LABELS[i]}` : ''}
                             {a.role === 'arm' && tele?.angles[a.id] !== undefined ? ` · ${tele.angles[a.id].toFixed(0)}°` : ''}
+                            {tele?.stopped[a.id] ? <span className="text-amber-300" data-testid="sim-stop"> · hard stop</span> : ''}
                           </div>
                         </div>
                         {a.role === 'spinner' && (
@@ -489,6 +545,37 @@ export default function TestDrive() {
                 <p className="text-[12px] text-white/50">No motor or servo drives anything besides the wheels.</p>
               )}
             </section>
+
+            {rig.actuators.length > 0 && (
+              <details className="rounded-lg bg-white/5 p-3" data-testid="sim-roles" open={Object.keys(roles).length > 0}>
+                <summary className="cursor-pointer text-[11px] font-semibold uppercase tracking-wider text-white/50">Motor roles {Object.keys(roles).length ? `· ${Object.keys(roles).length} set by you` : '· auto'}</summary>
+                <p className="mt-1.5 text-[11px] text-white/45">Guessed wrong? Tell it what each motor does.</p>
+                <ul className="mt-1.5 space-y-1.5">
+                  {rig.actuators.map((a) => {
+                    const own = roles[a.instanceId];
+                    const short = a.label.replace(/ \(nothing attached\)/, '');
+                    return (
+                      <li key={a.instanceId} className="flex items-center gap-2 text-[12px]">
+                        <span className="min-w-0 flex-1 truncate" title={a.name}>
+                          {short}
+                        </span>
+                        <select
+                          data-testid="sim-role"
+                          aria-label={`What ${short} does`}
+                          className="rounded border border-white/15 bg-[#2a2e35] px-1 py-0.5 text-[11.5px]"
+                          value={own ?? 'auto'}
+                          onChange={(e) => setRole(a.instanceId, e.target.value === 'auto' ? null : (e.target.value as RoleOverride))}
+                        >
+                          <option value="auto">Auto ({a.role === 'spinner' ? 'intake' : a.role === 'idle' ? 'nothing' : a.role})</option>
+                          <option value="spinner">Intake / spinner</option>
+                          <option value="arm">Arm / pivot</option>
+                        </select>
+                      </li>
+                    );
+                  })}
+                </ul>
+              </details>
+            )}
 
             <section className="rounded-lg bg-white/5 p-3">
               <div className="mb-1.5 text-[11px] font-semibold uppercase tracking-wider text-white/50">Game elements</div>

@@ -92,3 +92,14 @@ export function plausibleMesh(a: ToothInfo, b: ToothInfo, centreDist: number, pa
   if (a.kind !== 'gear' || b.kind !== 'gear' || !parallel) return false;
   return Math.abs(centreDist - (a.r + b.r)) < Math.max(1.5, 0.06 * (a.r + b.r));
 }
+
+/**
+ * Where the teeth of a gear / sprocket / pulley are, in the part frame: on the spin axis, at the middle of the
+ * part along it (a set-screw sprocket's origin can sit at the end of its hub).
+ */
+export function toothCentreLocal(p: CatalogPart, axis: Vector3): Vector3 {
+  const c = spinCentreLocal(p, axis);
+  if (!p.bounds) return c;
+  const mid = v3(p.bounds[0]).add(v3(p.bounds[1])).multiplyScalar(0.5);
+  return c.addScaledVector(axis, mid.dot(axis));
+}

@@ -159,7 +159,7 @@ function useShortcuts() {
       switch (e.key) {
         case 'Escape':
           if (st.placingSku) st.startPlacing(null);
-          else if (st.tool !== 'select') st.set({ tool: 'select' });
+          else if (st.tool !== 'select') st.set({ tool: 'select', chainFirst: null });
           else st.select([]);
           return;
         case 'Tab':
@@ -206,6 +206,9 @@ function useShortcuts() {
           return;
         case 'f':
           st.set({ tool: st.tool === 'fasten' ? 'select' : 'fasten', placingSku: null });
+          return;
+        case 'n':
+          st.set({ tool: st.tool === 'chain' ? 'select' : 'chain', chainFirst: null, placingSku: null });
           return;
         case 'j':
           st.fastenJoint();

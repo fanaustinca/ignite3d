@@ -1,5 +1,6 @@
 // Structure & stability check: joints and their fasteners, shaft support, parts that are not attached,
 // long cantilevers, and how far the robot can tilt / accelerate before it tips over.
+import { isChainSku } from '../chain';
 import { Box3, Vector3 } from 'three';
 import type { CatalogPart, PlacedInstance, Vec3 } from '../../types/cad';
 import { instanceMatrix, q4, v3, worldSnaps, distToLine, type WorldSnap } from '../snap';
@@ -111,7 +112,7 @@ function yAxis(inst: PlacedInstance, part: CatalogPart) {
 // ---------------------------------------------------------------- main
 
 export function analyzeStructure(instances: PlacedInstance[], catalog: Record<string, CatalogPart>, meshOf?: (p: CatalogPart) => MeshSource | null): StrengthReport {
-  const visible = instances.filter((i) => !i.hidden && catalog[i.sku]);
+  const visible = instances.filter((i) => !i.hidden && catalog[i.sku] && !isChainSku(i.sku));
   const bodies: Body[] = [];
   const screws: { inst: PlacedInstance; part: CatalogPart; o: Vector3; d: Vector3; len: number }[] = [];
   const nuts: { inst: PlacedInstance; pos: Vector3 }[] = [];

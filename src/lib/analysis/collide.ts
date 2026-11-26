@@ -5,6 +5,7 @@
 // more than `tolMm`: coincident faces (flush joints), facet noise and thread engagement stay
 // below the tolerance. Intended overlaps around a shared hole axis (screw in a hole, shaft in a
 // bore, bearing in a seat) are excluded inside a radius that depends on the snap types.
+import { isChainSku } from '../chain';
 import { BufferAttribute, BufferGeometry, DoubleSide, Ray, Vector3, Box3 } from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
 import type { CatalogPart, PlacedInstance, SnapType } from '../../types/cad';
@@ -265,7 +266,7 @@ export async function findCollisions(
   const tol = opts.tol ?? 0.4;
   const list: { inst: PlacedInstance; part: CatalogPart; col: Collider; box: Box3 }[] = [];
   for (const inst of instances) {
-    if (inst.hidden) continue;
+    if (inst.hidden || isChainSku(inst.sku)) continue;
     const part = catalog[inst.sku];
     if (!part) continue;
     const m = meshOf(part);

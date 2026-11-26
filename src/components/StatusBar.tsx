@@ -1,6 +1,7 @@
 import { useMemo } from 'react';
 import { useCadStore } from '../store/useCadStore';
 import { massProps } from '../lib/metrics';
+import { CHAIN_KINDS } from '../lib/chain';
 import { APP_VERSION, TEAM_CREDIT } from '../version';
 import { useCheckStore } from '../services/robotCheck';
 import { useCloudStore } from '../services/cloud';
@@ -19,6 +20,16 @@ export function StatusBar() {
       <>
         Placing <b className="text-accent">{placing.name}</b> — click to place · <kbd>R</kbd> rotate 90° · <kbd>Shift+R</kbd> 45° · <kbd>Tab</kbd> next hole · <kbd>S</kbd> snap {st.snapEnabled ? 'on' : 'off'} ·{' '}
         <kbd>Esc</kbd> done
+      </>
+    );
+  else if (st.tool === 'chain')
+    hint = (
+      <>
+        <b className="text-accent">Chain</b> — {st.chainFirst ? 'now click the second sprocket' : 'click the first sprocket'} (in line, same pitch).{' '}
+        <button type="button" data-testid="chain-kind" className="underline decoration-dotted hover:text-accent" onClick={() => st.set({ chainSku: st.chainSku === CHAIN_KINDS[0].sku ? CHAIN_KINDS[1].sku : CHAIN_KINDS[0].sku })}>
+          {st.chainSku === CHAIN_KINDS[0].sku ? 'Plastic' : 'Steel'} chain
+        </button>{' '}
+        <kbd>Esc</kbd> exit
       </>
     );
   else if (st.tool === 'fasten')

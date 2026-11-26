@@ -6,10 +6,12 @@ import { BUILTIN_CATALOG, LOCKNUT_SKU, shcsSku } from '../data/catalog';
 import { type AssetSource } from '../services/assetLoader';
 import { type AssetConfig, loadAssetConfig } from '../config/assets';
 import { q4, rotateAbout, toVec3, v3, worldSnaps, type WorldSnap } from '../lib/snap';
+import { CHAIN_KINDS, CHAIN_PITCH, chainInstance, chainKind, checkChain, isChainSku, resolveChains, sprocketOf } from '../lib/chain';
+import { toothInfo } from '../lib/drive/partInfo';
 import { axisKey, planFasten, spreadPick, type FastenOptions, type FastenPlan, type ScrewSeg } from '../lib/fasten';
 
 export type Theme = 'dark' | 'light';
-export type Tool = 'select' | 'fasten';
+export type Tool = 'select' | 'fasten' | 'chain';
 export type Modal = null | 'help' | 'settings' | 'bom' | 'export' | 'upload' | 'share' | 'cloud' | 'projects' | 'test';
 
 export interface Toast {
@@ -43,6 +45,9 @@ interface CadState {
   ghostAnchor: number;
   snapEnabled: boolean;
   tool: Tool;
+  /** Chain tool: which chain to draw, and the first sprocket picked. */
+  chainSku: string;
+  chainFirst: string | null;
   gizmoMode: 'translate' | 'rotate';
   gridStep: number; // 0 = free
   angleStep: number; // degrees, 0 = free
@@ -84,6 +89,8 @@ interface CadState {
   rotateSelected: (deg: number) => void;
   fastenAt: (instanceId: string, snapId: string) => FastenPlan | null;
   fastenJoint: () => number;
+  /** Chain tool click on a part: first sprocket, then the second (adds the chain). */
+  chainClick: (instanceId: string | null) => void;
   clearScene: () => void;
 
   set: (p: Partial<CadState>) => void;
@@ -117,6 +124,8 @@ export const useCadStore = create<CadState>()(
       ghostAnchor: 0,
       snapEnabled: true,
       tool: 'select',
+      chainSku: CHAIN_KINDS[0].sku,
+      chainFirst: null,
       gizmoMode: 'translate',
       gridStep: 8,
       angleStep: 45,
@@ -149,7 +158,10 @@ export const useCadStore = create<CadState>()(
       bumpVisuals: () => set((st) => ({ visualVersion: st.visualVersion + 1 })),
       setAssetConfig: (c) => set({ assetConfig: c }),
 
-      startPlacing: (sku) => set({ placingSku: sku, ghostRot: 0, ghostAnchor: 0, tool: 'select', selection: sku ? [] : get().selection }),
+      startPlacing: (sku) =>
+        sku && isChainSku(sku)
+          ? set({ placingSku: null, tool: 'chain', chainSku: sku, chainFirst: null, selection: [] })
+          : set({ placingSku: sku, ghostRot: 0, ghostAnchor: 0, tool: 'select', selection: sku ? [] : get().selection }),
 
       addInstance: (i) => {
         const inst: PlacedInstance = { hidden: false, ghosted: false, ...i, instanceId: i.instanceId ?? uid() };
@@ -302,6 +314,44 @@ export const useCadStore = create<CadState>()(
         const screws = res.added.filter((a) => a.sku.startsWith('2800')).length;
         st.toast(`Fastened ${res.joints} joint${res.joints > 1 ? 's' : ''} with ${screws} screws (up to 4 per joint)`, 'ok');
         return screws;
+      },
+
+      chainClick: (instanceId) => {
+        const st = get();
+        const inst = instanceId ? st.instances.find((i) => i.instanceId === instanceId) : undefined;
+        const sp = inst ? sprocketOf(inst, st.catalog[inst.sku]) : null;
+        if (!sp) {
+          st.toast(toothInfo(st.catalog[inst?.sku ?? ''] ?? ({ name: '' } as CatalogPart)) ? 'Chain goes on sprockets — that’s a gear or pulley.' : 'Click a sprocket (8 mm pitch).', 'info');
+          return;
+        }
+        if (!st.chainFirst || st.chainFirst === instanceId) {
+          set({ chainFirst: st.chainFirst === instanceId ? null : instanceId, selection: st.chainFirst === instanceId ? [] : [instanceId!] });
+          return;
+        }
+        const first = st.instances.find((i) => i.instanceId === st.chainFirst);
+        const a = first ? sprocketOf(first, st.catalog[first.sku]) : null;
+        if (!a) {
+          set({ chainFirst: instanceId, selection: [instanceId!] });
+          return;
+        }
+        const chk = checkChain(a, sp);
+        if (!chk.ok) {
+          st.toast(chk.reason!, 'warn');
+          return;
+        }
+        const dup = resolveChains(st.instances, st.catalog).some((r) => r.resolved && new Set([r.resolved.a.inst.instanceId, r.resolved.b.inst.instanceId, a.inst.instanceId, sp.inst.instanceId]).size === 2);
+        if (dup) {
+          st.toast('Those sprockets already have a chain.', 'info');
+          set({ chainFirst: null, selection: [] });
+          return;
+        }
+        const c = chainInstance(a, sp, st.chainSku, uid());
+        set((s2) => ({ instances: [...s2.instances, c], chainFirst: null, selection: [c.instanceId] }));
+        const slack = chk.slack!;
+        st.toast(
+          `${chainKind(st.chainSku).name.includes('Steel') ? 'Steel' : 'Plastic'} chain: ${chk.links} links (${chk.links! * CHAIN_PITCH} mm)${slack > CHAIN_PITCH * 0.6 ? ` · ${slack.toFixed(1)} mm slack — add a tensioner or move a sprocket` : ' · good tension'}`,
+          slack > CHAIN_PITCH * 0.6 ? 'warn' : 'ok',
+        );
       },
 
       clearScene: () => set({ instances: [], selection: [] }),

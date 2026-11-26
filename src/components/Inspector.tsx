@@ -4,6 +4,7 @@ import { Euler, Quaternion, Vector3 } from 'three';
 import { useCadStore } from '../store/useCadStore';
 import { massProps, robotBounds, sizeCheck } from '../lib/metrics';
 import { SNAP_COLORS } from '../lib/snap';
+import { chainKind, isChainSku, resolveChains } from '../lib/chain';
 import type { Quat, SnapType, Vec3 } from '../types/cad';
 import { Btn, Section } from './ui';
 import { loadExample } from '../lib/loadExample';
@@ -147,6 +148,8 @@ export function Inspector() {
     const q = new Quaternion().setFromEuler(new Euler(e[0], e[1], e[2], 'XYZ'));
     st.updateTransforms({ [one.instanceId]: { position: one.position, quaternion: [q.x, q.y, q.z, q.w] as Quat } });
   };
+  // a chain: what this loop uses, not the whole pack
+  const chain = one && isChainSku(one.sku) ? (resolveChains(st.instances, st.catalog).find((c) => c.chain.instanceId === one.instanceId)?.resolved ?? null) : undefined;
   const totalMass = sel.reduce((a, i) => a + (st.catalog[i.sku]?.massGrams ?? 0), 0);
   const snapCounts: Partial<Record<SnapType, number>> = {};
   part?.snapPoints.forEach((s) => (snapCounts[s.type] = (snapCounts[s.type] ?? 0) + 1));
@@ -160,6 +163,22 @@ export function Inspector() {
               {part.name}
             </div>
             <div className="mt-0.5 font-mono text-[11.5px] text-muted">{part.sku}</div>
+            {chain !== undefined ? (
+              <div className="mt-2 rounded-md bg-panel-2 p-2 text-[12px]" data-testid="chain-info">
+                {chain ? (
+                  <>
+                    <div className="num font-medium">
+                      {chain.links} links · {chain.links * 8} mm · {(chain.links * chainKind(one.sku).gPerLink).toFixed(1)} g
+                    </div>
+                    <div className="text-muted">
+                      {chain.a.teeth}T → {chain.b.teeth}T ({(chain.b.teeth / chain.a.teeth).toFixed(2)}:1){chain.slack > 4.8 ? ` · ${chain.slack.toFixed(1)} mm slack` : ' · tight'}
+                    </div>
+                  </>
+                ) : (
+                  <div className="text-danger">This chain lost its sprockets — delete it and draw it again with the Chain tool (N).</div>
+                )}
+              </div>
+            ) : (
             <div className="mt-2 grid grid-cols-3 gap-2 text-center text-[11.5px]">
               <div className="rounded-md bg-panel-2 py-1.5">
                 <div className="text-muted">Mass</div>
@@ -174,6 +193,7 @@ export function Inspector() {
                 <div className="num font-medium">{part.snapPoints.length}</div>
               </div>
             </div>
+            )}
             {one.groupId && <div className="mt-2 text-[11.5px] text-muted">In a sub-assembly group (Ctrl+Shift+G to ungroup)</div>}
           </div>
         ) : (

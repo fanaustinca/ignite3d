@@ -894,6 +894,45 @@ await test('REV hubs in the catalog; collision + stability checks can be turned 
   await page.keyboard.press('Escape');
 });
 
+await test('Chain tool: click two sprockets -> a chain loop with the right link count, in the BOM, survives undo/redo', async () => {
+  await st(() => {
+    const s = window.__ignite.store.getState();
+    s.clearScene();
+    s.addInstance({ instanceId: 'SA', sku: '3310-0014-0042', position: [0, 40, 0], quaternion: [0, 0, 0, 1] });
+    s.addInstance({ instanceId: 'SB', sku: '3310-0014-0014', position: [130, 40, 0], quaternion: [0, 0, 0, 1] });
+    window.__ignite.setView([65, 420, 260], [65, 40, 0]);
+  });
+  await sleep(600);
+  await page.keyboard.press('n');
+  assert((await st(() => window.__ignite.store.getState().tool)) === 'chain', 'N picks the chain tool');
+  const click = async (p) => {
+    const xy = await st((q) => window.__ignite.project(q), p);
+    await page.mouse.move(xy.x, xy.y);
+    await sleep(120);
+    await page.mouse.click(xy.x, xy.y);
+    await sleep(200);
+  };
+  await click([0, 41.4, 32]);
+  assert((await st(() => window.__ignite.store.getState().chainFirst)) === 'SA', 'first sprocket picked');
+  await click([130, 45.4, 12]);
+  const chain = await st(() => window.__ignite.store.getState().instances.find((i) => i.sku.startsWith('3309-')));
+  assert(chain, 'chain added');
+  const bom = await st(() => window.__ignite.exports.bom());
+  const row = bom.find((r) => r.sku === '3309-0108-0050');
+  // 42T + 14T at 130 mm: loop ≈ 2·√(130² − 35.5²) + π·(53.6+17.96) + 2·35.5·asin(35.5/130) ≈ 494 mm -> 62 links
+  const links = Number(/(\d+) links used/.exec(row.name)[1]);
+  assert(links >= 60 && links <= 64 && links % 2 === 0, row.name);
+  assert(row.qty === 2, 'two 50-link packs: ' + row.qty);
+  await shot('26-chain-tool');
+  await st(() => window.__ignite.undo());
+  assert(!(await st(() => window.__ignite.store.getState().instances.some((i) => i.sku.startsWith('3309-')))), 'undo removes the chain');
+  await st(() => window.__ignite.redo());
+  assert(await st(() => window.__ignite.store.getState().instances.some((i) => i.sku.startsWith('3309-'))), 'redo brings it back');
+  // a gear is not a sprocket
+  await page.keyboard.press('Escape');
+  assert((await st(() => window.__ignite.store.getState().tool)) === 'select', 'Esc leaves the chain tool');
+});
+
 await test('Live Test (beta): finds the drivetrain, drives with the keyboard mapping, adds game elements, Esc returns to CAD', async () => {
   await st(() => window.__ignite.loadExample());
   await page.click('[data-testid="open-test"]');
@@ -919,6 +958,12 @@ await test('Live Test (beta): finds the drivetrain, drives with the keyboard map
   const n0 = await st(() => window.__igniteSim.sim.elements.length);
   await page.click('[data-testid="sim-add-pollen"]');
   assert((await st(() => window.__igniteSim.sim.elements.length)) === n0 + 5, 'five POLLEN added');
+  // the user can correct a motor's role: making one drive motor an "intake" rebuilds the rig with 3 drive motors
+  await page.select('[data-testid="sim-role"]', 'spinner');
+  await page.waitForFunction(() => window.__igniteSim && window.__igniteSim.rig.drive.motors === 3, { timeout: 60000 });
+  await page.select('[data-testid="sim-role"]', 'auto');
+  await page.waitForFunction(() => window.__igniteSim && window.__igniteSim.rig.drive.motors === 4, { timeout: 60000 });
+  await page.click('[data-testid="sim-add-pollen"]');
   await sleep(500);
   await shot('25-live-test');
   await page.keyboard.press('Escape');

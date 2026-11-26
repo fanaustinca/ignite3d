@@ -204,3 +204,246 @@ describe.skipIf(!real)('Live Test gears', () => {
     expect(wG.dot(wP)).toBeCloseTo(-0.5, 6);
   });
 });
+
+// ---------------------------------------------------------------- realistic intake / transfer module
+async function mechModule(origin: [number, number, number]) {
+  const { Quaternion, Vector3 } = await import('three');
+  const { mateTransform, worldSnaps, v3, snapUp } = await import('../snap');
+  const { chainInstance, sprocketOf } = await import('../chain');
+  let n = 0;
+  const mk = (sku: string, position: number[], q: { x: number; y: number; z: number; w: number }): PlacedInstance => ({ instanceId: `M${n++}-${sku}`, sku, position: position as [number, number, number], quaternion: [q.x, q.y, q.z, q.w], hidden: false, ghosted: false });
+  const C = mk('1120-0013-0336', origin, new Quaternion());
+  const cs = worldSnaps(C, cat[C.sku]);
+  const cc = new Vector3(...origin);
+  // outward-facing 14 mm bores on one horizontal-normal face, ordered along the channel
+  const face = cs.filter((s) => s.snap.type === 'bearing_14mm' && !s.snap.male && Math.abs(s.normal.y) < 0.1 && s.pos.clone().sub(cc).dot(s.normal) > 10);
+  const n0 = face[0].normal.clone();
+  const holes = face.filter((s) => s.normal.dot(n0) > 0.99).sort((a, b) => a.pos.x + a.pos.z - (b.pos.x + b.pos.z));
+  const S1 = holes[0], S2 = holes.find((h) => h.pos.distanceTo(S1.pos) > 100)!;
+  const list: PlacedInstance[] = [C];
+  const onto = (sku: string, pick: (s: SnapPoint) => boolean, target: { pos: InstanceType<typeof Vector3>; normal: InstanceType<typeof Vector3>; up: InstanceType<typeof Vector3> }) => {
+    const ghost = cat[sku].snapPoints.find(pick)!;
+    const t = mateTransform(ghost, target);
+    const inst = mk(sku, t.position.toArray(), t.quaternion);
+    list.push(inst);
+    return inst;
+  };
+  const outer = (inst: PlacedInstance, type: string, dir: InstanceType<typeof Vector3>) =>
+    worldSnaps(inst, cat[inst.sku]).filter((s) => s.snap.type === type && !s.snap.male && s.normal.dot(dir) > 0.99).sort((a, b) => b.pos.dot(dir) - a.pos.dot(dir))[0];
+  const roller = (S: (typeof holes)[0]) => {
+    const up = snapUp(S.snap);
+    const B = onto('1611-0514-4008', (s) => s.type === 'bearing_14mm' && !!s.male, { pos: S.pos, normal: S.normal, up });
+    const b0 = outer(B, 'rex_8mm', n0);
+    const W1 = onto('3613-4008-0048', (s) => s.type === 'rex_8mm', { pos: b0.pos, normal: b0.normal, up });
+    const w1 = outer(W1, 'rex_8mm', n0);
+    const W2 = onto('3613-4008-0048', (s) => s.type === 'rex_8mm', { pos: w1.pos, normal: w1.normal, up });
+    const w2 = outer(W2, 'rex_8mm', n0);
+    const SP = onto('3307-4008-0010', (s) => s.type === 'rex_8mm', { pos: w2.pos, normal: w2.normal, up });
+    // REX shaft along the axis, from inside the channel wall out past the sprocket
+    const sh = cat['2101-0008-0100'] ? '2101-0008-0100' : Object.keys(cat).find((k) => /8mm REX Shaft/i.test(cat[k].name) && (cat[k].bounds?.[1][1] ?? 0) - (cat[k].bounds?.[0][1] ?? 0) > 70)!;
+    const sb = cat[sh].bounds!;
+    const q = new Quaternion().setFromUnitVectors(new Vector3(0, 1, 0), n0);
+    list.push(mk(sh, S.pos.clone().addScaledVector(n0, -6 - sb[0][1]).toArray(), q));
+    // motor 90 mm above, output along n0, with a sprocket in line with the roller's
+    const sp1 = sprocketOf(SP, cat[SP.sku])!;
+    const yUp = new Vector3(0, 1, 0);
+    const ms = cat['5203-2402-0019'].snapPoints.find((s) => s.male && s.type === 'rex_8mm')!;
+    const mt = mateTransform(ms, { pos: S.pos.clone().addScaledVector(yUp, 90), normal: n0.clone().negate(), up: yUp });
+    const M = mk('5203-2402-0019', mt.position.toArray(), mt.quaternion);
+    const mOut = worldSnaps(M, cat[M.sku]).find((s) => s.snap.male && s.snap.type === 'rex_8mm')!;
+    const ss = cat['3307-4008-0010'].snapPoints.find((s) => s.type === 'rex_8mm' && v3(s.normal).dot(new Vector3(0, 1, 0)) < 0) ?? cat['3307-4008-0010'].snapPoints.find((s) => s.type === 'rex_8mm')!;
+    const st = mateTransform(ss, { pos: mOut.pos, normal: mOut.normal, up: yUp });
+    const SP2 = mk('3307-4008-0010', st.position.toArray(), st.quaternion);
+    // slide motor + sprocket along the axis so the two sprockets are in line
+    const d = sprocketOf(SP2, cat[SP2.sku])!.c.clone().sub(sp1.c).dot(n0);
+    for (const i of [M, SP2]) i.position = new Vector3(...i.position).addScaledVector(n0, -d).toArray() as [number, number, number];
+    list.push(M, SP2);
+    list.push(chainInstance(sp1, sprocketOf(SP2, cat[SP2.sku])!, '3309-0108-0050', `chain-${n++}`));
+    return { motor: M, wheel: W1, bearing: B };
+  };
+  const intake = roller(S1);
+  const transfer = roller(S2);
+  return { list, intake, transfer, channel: C };
+}
+
+describe.skipIf(!real)('Live Test intake + transfer (bearings, chains, no drivetrain)', () => {
+  it('wheels stacked against a bearing turn in it; both chain-driven motors are spinners, with or without a drivetrain', async () => {
+    const mod = await mechModule([0, 200, 0]);
+    for (const list of [mod.list, [...buildExampleRobot(cat), ...(await mechModule([0, 120, 0])).list]]) {
+      const rig = buildRig(list, cat);
+      const bodyOf = (id: string) => rig.bodies.find((b) => b.parts.some((p) => p.instanceId === id))!;
+      const ids = list === mod.list ? mod : null;
+      const motors = rig.actuators.filter((a) => /M\d+-5203/.test(a.instanceId));
+      expect(motors.length).toBe(2);
+      for (const m of motors) expect(m.role, rig.notes.join(' | ')).toBe('spinner');
+      expect(rig.chains.length).toBe(2);
+      expect(rig.couplings.filter((c) => c.kind === 'chain').length).toBe(2);
+      if (ids) {
+        const w = bodyOf(ids.intake.wheel.instanceId);
+        expect(w.parts.some((p) => p.instanceId === ids.channel.instanceId)).toBe(false); // not welded to the frame
+        expect(w.axis).toBeTruthy();
+        expect(w.drive?.actuator).toBe(rig.actuators.find((a) => a.instanceId === ids.intake.motor.instanceId)!.id);
+        expect(Math.abs(w.drive!.ratio)).toBeCloseTo(1, 3);
+        expect(rig.drive.motors).toBe(0);
+        // the sim runs them with no drivetrain at all
+        const R = await loadRapier();
+        const sim = new Sim(R, rig, cat, () => null);
+        const a = rig.actuators.find((x) => x.instanceId === ids.intake.motor.instanceId)!;
+        for (let i = 0; i < 60; i++) sim.step({ fwd: 0, strafe: 0, turn: 0, act: { [a.id]: 1 } }, 1 / 120);
+        expect(Math.abs(sim.moving.get(w.id)!.angle)).toBeGreaterThan(5);
+        sim.dispose();
+      } else expect(rig.drive.motors).toBe(4);
+    }
+  });
+
+  it('chain packs in the BOM, chain survives a share link', async () => {
+    const mod = await mechModule([0, 200, 0]);
+    const { bomRows } = await import('../../export/files');
+    const { encodeBuild, decodeBuild } = await import('../share');
+    const { resolveChains } = await import('../chain');
+    const rows = bomRows(mod.list, cat);
+    const ch = rows.find((r) => r.sku === '3309-0108-0050')!;
+    const used = Number(/(\d+) links used/.exec(ch.name)![1]);
+    expect(ch.qty).toBe(Math.ceil(used / 50));
+    expect(ch.name).toMatch(/links used/);
+    const back = decodeBuild(encodeBuild(mod.list))!;
+    const rc = resolveChains(back, cat);
+    expect(rc.length).toBe(2);
+    expect(rc.every((r) => r.resolved && r.resolved.links >= 26 && r.resolved.links % 2 === 0)).toBe(true);
+  });
+});
+
+describe('chain geometry', () => {
+  it('loop length and link points follow the sprockets', async () => {
+    const { loopLength, chainLinks } = await import('../chain');
+    expect(loopLength(100, 20, 20)).toBeCloseTo(200 + 2 * Math.PI * 20, 6);
+    const pts = chainLinks({ r: 30 }, { r: 15 }, 120, 40);
+    // every point sits on the pitch line: on a circle or the tangent runs
+    for (const { p } of pts) {
+      const dA = Math.hypot(p.x + 60, p.z), dB = Math.hypot(p.x - 60, p.z);
+      expect(Math.min(Math.abs(dA - 30), Math.abs(dB - 15), p.x > -60 && p.x < 60 ? 0 : 1)).toBeLessThan(0.01);
+    }
+  });
+});
+
+describe.skipIf(!real)('Live Test miter gears', () => {
+  it('two miter gears at right angles turn opposite ways about axes pointing out from the apex', async () => {
+    const { Vector3 } = await import('three');
+    const { mateTransform, worldSnaps } = await import('../snap');
+    const { spinAxisLocal, toothCentreLocal } = await import('./partInfo');
+    const { instanceMatrix, q4 } = await import('../snap');
+    const G = '2317-4008-0024';
+    const ms = cat['5203-2402-0019'].snapPoints.find((s) => s.male && s.type === 'rex_8mm')!;
+    const motorAt = (id: string, pos: InstanceType<typeof Vector3>, dir: InstanceType<typeof Vector3>): PlacedInstance[] => {
+      const up = Math.abs(dir.y) > 0.9 ? new Vector3(1, 0, 0) : new Vector3(0, 1, 0);
+      const t = mateTransform(ms, { pos, normal: dir.clone().negate(), up });
+      const M: PlacedInstance = { instanceId: id, sku: '5203-2402-0019', position: t.position.toArray() as [number, number, number], quaternion: t.quaternion.toArray() as [number, number, number, number], hidden: false, ghosted: false };
+      const out = worldSnaps(M, cat[M.sku]).find((s) => s.snap.male)!;
+      const gs = cat[G].snapPoints.find((s) => s.type === 'rex_8mm')!;
+      const g = mateTransform(gs, { pos: out.pos, normal: out.normal, up });
+      return [M, { instanceId: id + 'G', sku: G, position: g.position.toArray() as [number, number, number], quaternion: g.quaternion.toArray() as [number, number, number, number], hidden: false, ghosted: false }];
+    };
+    const centre = (i: PlacedInstance) => {
+      const ax = spinAxisLocal(cat[i.sku]);
+      return { c: toothCentreLocal(cat[i.sku], ax).applyMatrix4(instanceMatrix(i)), d: ax.applyQuaternion(q4(i.quaternion)).normalize() };
+    };
+    // gear A on a motor pointing −Z (toward the apex), gear B on a motor pointing −X; place B so its axis runs through
+    // the apex = A's centre − r·dir and its teeth sit r out along +X
+    const A = motorAt('MA', new Vector3(0, 300, 60), new Vector3(0, 0, -1));
+    const a = centre(A[1]);
+    const r = 9.6;
+    const apex = a.c.clone().add(new Vector3(0, 0, -r));
+    const B = motorAt('MB', new Vector3(60, 300, apex.z), new Vector3(-1, 0, 0));
+    const b = centre(B[1]);
+    const shift = apex.clone().add(new Vector3(r, 0, 0)).sub(b.c);
+    for (const i of B) i.position = new Vector3(...i.position).add(shift).toArray() as [number, number, number];
+    const rig = buildRig([...buildExampleRobot(cat), ...A, ...B], cat);
+    const c = rig.couplings.find((x) => x.kind === 'miter');
+    expect(c, rig.notes.join(' | ')).toBeTruthy();
+    const bodyA = rig.bodies.find((x) => x.parts.some((p) => p.instanceId === 'MAG'))!;
+    const bodyB = rig.bodies.find((x) => x.parts.some((p) => p.instanceId === 'MBG'))!;
+    const wA = bodyA.axis!.clone().multiplyScalar(bodyA.drive!.ratio);
+    const wB = bodyB.axis!.clone().multiplyScalar(bodyB.drive!.ratio * (bodyB.drive!.actuator === bodyA.drive!.actuator ? 1 : NaN));
+    // outward axes: A's gear is at +Z of the apex, B's at +X
+    expect(wB.dot(new Vector3(1, 0, 0))).toBeCloseTo(-wA.dot(new Vector3(0, 0, 1)), 3);
+  });
+});
+
+describe.skipIf(!real)('Live Test hard stops + mechanism sync', () => {
+  it('an arm stops at a stopper on the frame instead of swinging through it, and can move back off it', async () => {
+    const { Quaternion, Vector3, Box3, Matrix4 } = await import('three');
+    const { instanceMatrix, v3 } = await import('../snap');
+    const base = buildExampleRobot(cat);
+    const box = new Box3();
+    for (const i of base) box.union(new Box3(v3(cat[i.sku].bounds![0]), v3(cat[i.sku].bounds![1])).applyMatrix4(instanceMatrix(i)));
+    const x0 = 0, y0 = box.max.y + 30, z0 = box.max.z + 5;
+    const q = new Quaternion().setFromAxisAngle(new Vector3(1, 0, 0), Math.PI / 2);
+    const bq = new Quaternion().setFromRotationMatrix(new Matrix4().makeBasis(new Vector3(0, 1, 0), new Vector3(0, 0, 1), new Vector3(1, 0, 0)));
+    const I = (instanceId: string, sku: string, position: number[], qq: { x: number; y: number; z: number; w: number }): PlacedInstance => ({ instanceId, sku, position: position as [number, number, number], quaternion: [qq.x, qq.y, qq.z, qq.w], hidden: false, ghosted: false });
+    const list = [
+      ...base,
+      I('AM', '5203-2402-0019', [x0, y0, z0], q),
+      I('AH', '1309-0016-4008', [x0, y0, z0 + 7], q),
+      I('AB', '1102-0013-0104', [x0 + 8, y0 + 40, z0 + 12], bq),
+    ];
+    const meshFromBounds = (p: CatalogPart) => {
+      const b = p.bounds;
+      if (!b) return null;
+      const [x0_, y0_, z0_] = b[0], [x1, y1, z1] = b[1];
+      const v = [[x0_, y0_, z0_], [x1, y0_, z0_], [x1, y1, z0_], [x0_, y1, z0_], [x0_, y0_, z1], [x1, y0_, z1], [x1, y1, z1], [x0_, y1, z1]];
+      const f = [[0, 2, 1], [0, 3, 2], [4, 5, 6], [4, 6, 7], [0, 1, 5], [0, 5, 4], [2, 3, 7], [2, 7, 6], [1, 2, 6], [1, 6, 5], [0, 4, 7], [0, 7, 3]];
+      return { triangles: new Float32Array(f.flatMap((t) => t.flatMap((k) => v[k]))) };
+    };
+    const R = await loadRapier();
+    const sweep = async (withStop: boolean) => {
+      const l = [...list];
+      // a stopper block on the frame, 60° round from the arm at rest (beam points +Y; turning about +Z)
+      const arm = buildRig(l, cat);
+      const a0 = arm.actuators.find((a) => a.instanceId === 'AM')!;
+      if (withStop) {
+        const ang = Math.PI / 3;
+        const p = new Vector3(-Math.sin(ang) * 70, Math.cos(ang) * 70, 12).add(new Vector3(x0, y0, z0));
+        l.push(I('STOP', '1602-0032-0004', [p.x, p.y, p.z], new Quaternion()));
+      }
+      const rig = buildRig(l, cat);
+      const a = rig.actuators.find((x) => x.instanceId === 'AM')!;
+      expect(a.role).toBe(a0.role);
+      const sim = new Sim(R, rig, cat, meshFromBounds);
+      let max = 0;
+      // turn both ways; find how far it gets
+      for (const dir of [1, -1]) {
+        sim.resetRobot();
+        for (let i = 0; i < 120; i++) sim.step({ fwd: 0, strafe: 0, turn: 0, act: { [a.id]: 0.4 * dir } }, 1 / 120);
+        max = Math.max(max, Math.abs(sim.telemetry().angles[a.id]));
+      }
+      const t = sim.telemetry();
+      sim.dispose();
+      return { max, t };
+    };
+    const free = await sweep(false);
+    const stopped = await sweep(true);
+    expect(free.max).toBeGreaterThan(120);
+    expect(stopped.max, `free ${free.max} stopped ${stopped.max}`).toBeLessThan(free.max * 0.75);
+  });
+
+  it('mechanisms stay exactly where they are on the chassis while it accelerates and brakes', async () => {
+    const { Matrix4, Vector3 } = await import('three');
+    const list = [...buildExampleRobot(cat), ...(await mechModule([0, 120, 0])).list];
+    const rig = buildRig(list, cat);
+    const R = await loadRapier();
+    const sim = new Sim(R, rig, cat, () => null);
+    let worst = 0;
+    for (let i = 0; i < 240; i++) {
+      sim.step({ fwd: i < 120 ? 1 : -1, strafe: 0, turn: 0, act: {} }, 1 / 120);
+      const inv = sim.chassisMatrix().invert();
+      for (const m of sim.moving.values()) {
+        // the joint pivot never moves relative to the chassis
+        const p = m.pivot.clone().applyMatrix4(new Matrix4().multiplyMatrices(inv, m.world));
+        worst = Math.max(worst, p.distanceTo(m.pivot));
+      }
+    }
+    sim.dispose();
+    expect(worst).toBeLessThan(1e-5);
+    void Vector3;
+  });
+});

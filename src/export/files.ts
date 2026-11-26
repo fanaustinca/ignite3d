@@ -1,4 +1,5 @@
 // Local exports: STEP (Onshape), STL, GLB, JSON manifest, BOM CSV.
+import { chainKind, isChainSku, resolveChains } from '../lib/chain';
 import { Group, Matrix4, Mesh, Vector3 } from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
 import type { CatalogPart, PlacedInstance } from '../types/cad';
@@ -20,7 +21,8 @@ export function download(name: string, data: BlobPart, type = 'application/octet
 }
 
 const ZUP = new Matrix4().makeRotationX(Math.PI / 2);
-const visible = (insts: PlacedInstance[]) => insts.filter((i) => !i.hidden);
+// chains have no solid of their own (they are listed in the BOM)
+const visible = (insts: PlacedInstance[]) => insts.filter((i) => !i.hidden && !isChainSku(i.sku));
 
 export function buildStep(instances: PlacedInstance[], catalog: Record<string, CatalogPart>, name = 'Ignite3D Robot', fragments?: Record<string, StepFragment | undefined>) {
   return exportStep(visible(instances), catalog, {
@@ -132,14 +134,18 @@ export interface BomRow {
 
 export function bomRows(instances: PlacedInstance[], catalog: Record<string, CatalogPart>): BomRow[] {
   const counts = new Map<string, number>();
-  for (const i of instances) if (!i.hidden) counts.set(i.sku, (counts.get(i.sku) ?? 0) + 1);
+  const links = new Map<string, number>();
+  for (const r of resolveChains(instances, catalog)) if (r.resolved) links.set(r.chain.sku, (links.get(r.chain.sku) ?? 0) + r.resolved.links);
+  for (const i of instances) if (!i.hidden && !isChainSku(i.sku)) counts.set(i.sku, (counts.get(i.sku) ?? 0) + 1);
+  // chain: whole packs for all the links used (each loop is cut from them)
+  for (const [sku, n] of links) counts.set(sku, Math.ceil(n / chainKind(sku).perPack));
   const rows: BomRow[] = [];
   for (const [sku, qty] of counts) {
     const p = catalog[sku];
     if (!p) continue;
     rows.push({
       sku,
-      name: p.name,
+      name: links.has(sku) ? `${p.name} — ${links.get(sku)} links used` : p.name,
       category: p.category,
       qty,
       unitMassG: p.massGrams,

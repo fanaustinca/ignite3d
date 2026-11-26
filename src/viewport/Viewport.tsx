@@ -37,6 +37,7 @@ import { visualFor } from '../services/assetLoader';
 import { compatible, instanceMatrix, mateTransform, q4, SNAP_COLORS, toQuat, toVec3, v3, worldSnaps, type WorldSnap } from '../lib/snap';
 import { massProps, robotBounds, sizeCheck, SIZE_LIMIT_MM } from '../lib/metrics';
 import { useCheckStore } from '../services/robotCheck';
+import { chainKind, chainLinkMatrices, isChainSku, linkGeometry, resolveChains } from '../lib/chain';
 
 // ------------------------------------------------------------------ shared registries
 
@@ -156,7 +157,7 @@ function HoverOverlay() {
   const selected = useCadStore((s) => (hovered ? s.selection.includes(hovered) : false));
   const visual = useVisual(inst?.sku ?? '');
   const mat = useMemo(() => new MeshBasicMaterial({ color: '#ff6a13', transparent: true, opacity: 0.16, depthWrite: false, polygonOffset: true, polygonOffsetFactor: -2 }), []);
-  if (!inst || !visual || placing || selected) return null;
+  if (!inst || !visual || placing || selected || isChainSku(inst.sku)) return null;
   return (
     <group position={inst.position} quaternion={q4(inst.quaternion)} raycast={() => null}>
       {visual.meshes.map((m, k) => (
@@ -176,7 +177,7 @@ function PartsLayer() {
     const xray = new Map<string, PlacedInstance[]>();
     const selected: PlacedInstance[] = [];
     for (const i of instances) {
-      if (i.hidden) continue;
+      if (i.hidden || isChainSku(i.sku)) continue;
       if (sel.has(i.instanceId)) {
         selected.push(i);
         continue;
@@ -199,8 +200,61 @@ function PartsLayer() {
       {selected.map((i) => (
         <SelectedPart key={i.instanceId} inst={i} preview={preview?.[i.instanceId]} />
       ))}
+      <ChainLayer />
     </group>
   );
+}
+
+// ------------------------------------------------------------------ chains (drawn around their two sprockets)
+
+const linkGeo = linkGeometry();
+const chainMats = new Map<string, MeshStandardMaterial>();
+const chainMat = (color: string) => chainMats.get(color) ?? chainMats.set(color, new MeshStandardMaterial({ color, metalness: 0.35, roughness: 0.5 })).get(color)!;
+
+function ChainLayer() {
+  const instances = useCadStore((s) => s.instances);
+  const catalog = useCadStore((s) => s.catalog);
+  const selection = useCadStore((s) => s.selection);
+  const chains = useMemo(() => (instances.some((i) => isChainSku(i.sku)) ? resolveChains(instances, catalog) : []), [instances, catalog]);
+  const sel = new Set(selection);
+  return (
+    <>
+      {chains.map(({ chain, resolved }) => (
+        <ChainMesh
+          key={chain.instanceId}
+          id={chain.instanceId}
+          mats={resolved ? chainLinkMatrices(resolved) : danglingLinks(chain)}
+          color={!resolved ? '#e5484d' : sel.has(chain.instanceId) ? '#ff6a13' : chainKind(chain.sku).color}
+          ghost={chain.ghosted}
+        />
+      ))}
+    </>
+  );
+}
+
+/** A chain whose sprockets moved away: a short red run where it was, so it can be found and deleted. */
+function danglingLinks(chain: PlacedInstance) {
+  const m = instanceMatrix(chain);
+  return Array.from({ length: 8 }, (_, k) => m.clone().multiply(new Matrix4().makeTranslation((k - 4) * 8, 0, 0)));
+}
+
+function ChainMesh({ id, mats, color, ghost }: { id: string; mats: Matrix4[]; color: string; ghost: boolean }) {
+  const ref = useRef<InstancedMesh>(null);
+  const material = useMemo(() => (ghost ? xrayMaterial(chainMat(color)) : chainMat(color)), [color, ghost]);
+  useLayoutEffect(() => {
+    const mesh = ref.current;
+    if (!mesh) return;
+    mats.forEach((m, i) => mesh.setMatrixAt(i, m));
+    mesh.count = mats.length;
+    mesh.instanceMatrix.needsUpdate = true;
+    mesh.computeBoundingSphere();
+    mesh.userData = { pick: true, ids: mats.map(() => id) };
+    pickables.add(mesh);
+    return () => {
+      pickables.delete(mesh);
+    };
+  }, [mats, id]);
+  return <instancedMesh key={mats.length} ref={ref} args={[linkGeo, material, Math.max(1, mats.length)]} frustumCulled={false} />;
 }
 
 // ------------------------------------------------------------------ interaction (ghost, snapping, fasten, selection)
@@ -298,7 +352,7 @@ function Interaction() {
       if (d.b === 2) {
         const st = useCadStore.getState();
         if (st.placingSku) st.startPlacing(null);
-        else if (st.tool === 'fasten') st.set({ tool: 'select' });
+        else if (st.tool === 'fasten' || st.tool === 'chain') st.set({ tool: 'select', chainFirst: null });
         return;
       }
       if (d.b !== 0) return;
@@ -595,6 +649,11 @@ function Interaction() {
       const t = fastenTarget.current;
       if (t) st.fastenAt(t.instanceId, t.snap.id);
       else st.toast('Hover an M4 hole on a joint (orange rings) and click it.', 'info');
+      return;
+    }
+    if (st.tool === 'chain' && !st.placingSku) {
+      raycaster.setFromCamera(ndc.current, camera);
+      st.chainClick(pick()?.instanceId ?? null);
       return;
     }
     if (st.placingSku) {

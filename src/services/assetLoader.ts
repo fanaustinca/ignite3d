@@ -8,6 +8,7 @@ import type { CatalogPart, SnapPoint } from '../types/cad';
 import { type AssetConfig, type RepoRef, DEFAULT_CAD_REPO, cdnBase, dracoBase, localBase } from '../config/assets';
 import { cacheDel, cacheGet, cacheKeys, cacheSet } from './cache';
 import { triangulateRecipe } from '../geometry/recipe';
+import { chainKind, isChainSku, linkGeometry } from '../lib/chain';
 import { BUILTIN_CATALOG, BUILTIN_CATALOG_VERSION } from '../data/catalog';
 
 export type AssetSource = 'procedural' | 'cached' | 'remote' | 'local' | 'custom' | 'loading';
@@ -128,7 +129,26 @@ export function cadMaterial(color: string) {
 export function proceduralVisual(part: CatalogPart): PartVisual {
   const meshes: PartVisual['meshes'] = [];
   const bounds = new Box3();
-  if (part.procedural) {
+  if (isChainSku(part.sku)) {
+    // library picture: a short straight run of links
+    const g = linkGeometry();
+    const n = 9;
+    const pos = g.attributes.position;
+    const arr = new Float32Array(pos.count * 3 * n);
+    for (let k = 0; k < n; k++)
+      for (let i = 0; i < pos.count; i++) {
+        arr[(k * pos.count + i) * 3] = pos.getX(i) + (k - n / 2) * 8;
+        arr[(k * pos.count + i) * 3 + 1] = pos.getZ(i);
+        arr[(k * pos.count + i) * 3 + 2] = pos.getY(i);
+      }
+    const cg = new BufferGeometry();
+    cg.setAttribute('position', new BufferAttribute(arr, 3));
+    cg.computeVertexNormals();
+    cg.computeBoundingBox();
+    cg.computeBoundingSphere();
+    bounds.copy(cg.boundingBox!);
+    meshes.push({ geometry: cg, material: cadMaterial(chainKind(part.sku).color) });
+  } else if (part.procedural) {
     for (const [color, arr] of triangulateRecipe(part.procedural)) {
       const g = new BufferGeometry();
       g.setAttribute('position', new BufferAttribute(new Float32Array(arr), 3));

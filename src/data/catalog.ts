@@ -2,6 +2,7 @@
 // Every hole is placed on the goBILDA 8 mm grid: 14 mm bores at 24 mm pitch with
 // 4×M4 on a 16 mm square around each, so parts snapped hole-to-hole stay aligned.
 import type { CatalogPart, Category, Extrusion, ProceduralRecipe, SnapPoint, Vec3 } from '../types/cad';
+import { CHAIN_PARTS } from '../lib/chain';
 import gobildaIndex from './gobilda.json';
 import { recipeBounds, recipeVolume, snapsFromRecipe, sub3, gearPts, hexPts, dPts, norm3, cross3, scale3, add3 } from '../geometry/recipe';
 import { C, bore14, circle, dHole, framed, m4, male, prism, rect, rexHole, roundHole, rrect, tappedHole, throughHole, poly } from './builders';
@@ -932,9 +933,11 @@ export const PROCEDURAL_CATALOG: CatalogPart[] = buildCatalog();
 const REAL = gobildaIndex as CatalogPart[];
 const procBySku = new Map(PROCEDURAL_CATALOG.map((p) => [p.sku, p]));
 export const USING_REAL_CATALOG = REAL.length > 0;
-export const BUILTIN_CATALOG: CatalogPart[] = USING_REAL_CATALOG
-  ? REAL.map((p) => ({ ...p, snapPoints: [], procedural: undefined, tags: procBySku.get(p.sku)?.tags }))
-  : PROCEDURAL_CATALOG;
+export const BUILTIN_CATALOG: CatalogPart[] = [
+  ...(USING_REAL_CATALOG ? REAL.map((p) => ({ ...p, snapPoints: [], procedural: undefined, tags: procBySku.get(p.sku)?.tags })) : PROCEDURAL_CATALOG),
+  // chains are drawn between two sprockets with the Chain tool (no mesh of their own)
+  ...CHAIN_PARTS.filter((c) => !REAL.some((p) => p.sku === c.sku)),
+];
 
 export const shcsSku = (L: number) => `2800-0004-${pad(L)}`;
 export const LOCKNUT_SKU = USING_REAL_CATALOG ? '2812-0004-0007' : '2810-0004-0001';

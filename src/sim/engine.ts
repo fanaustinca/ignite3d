@@ -66,6 +66,13 @@ interface SimRoller {
   w: number;
   squish: number;
 }
+interface StopShape {
+  shape: RAPIER_NS.Shape;
+  /** rest-frame (CAD m) box, for a quick reject */
+  box: Box3;
+  /** owner: chassis id or a moving body id */
+  owner: number;
+}
 interface MovingBody {
   rig: RigBody;
   rb: RAPIER_NS.RigidBody | null; // kinematic, null when it has no colliders
@@ -91,6 +98,8 @@ export interface Telemetry {
   motors: Record<number, number>; // power
   angles: Record<number, number>; // deg, per actuator (arms / servos)
   tipped: boolean;
+  /** actuators held at a hard stop this step */
+  stopped: Record<number, boolean>;
 }
 
 const tmpQ = new Quaternion();
@@ -121,6 +130,13 @@ export class Sim {
   wmax = 0;
   spawn: { p: Vector3; q: Quaternion };
   t = 0;
+  /** Robot footprint radius (m), for spawning game elements clear of it. */
+  reach = 0.3;
+  /** Hard stops: hull shapes of arm parts (by moving body) and of everything they could hit. */
+  private armShapes = new Map<number, StopShape[]>();
+  private obstacles: StopShape[] = [];
+  private restOverlap = new Set<string>();
+  stopped: Record<number, boolean> = {};
 
   constructor(R: R, rig: Rig, _catalog: Record<string, CatalogPart>, meshOf: (p: CatalogPart) => { triangles: Float32Array } | null) {
     this.R = R;
@@ -143,6 +159,7 @@ export class Sim {
     const box = new Box3();
     for (const b of rig.bodies) for (const p of b.parts) if (!isHardware(p.part)) box.union(partBox(p.part, p.inst));
     const centre = box.getCenter(new Vector3());
+    this.reach = (Math.hypot(box.max.x - box.min.x, box.max.z - box.min.z) / 2) * MM;
     this.spawn = { p: new Vector3(-centre.x * MM, -rig.groundY * MM + 0.002, -centre.z * MM), q: new Quaternion() };
 
     this.chassis = this.world.createRigidBody(
@@ -208,10 +225,23 @@ export class Sim {
           this.rollers.push({ body: owner, c: roller.centre.clone().multiplyScalar(MM), a: roller.axle.clone(), R: roller.radius * MM, w: roller.width * MM, squish: roller.squish * MM });
           continue;
         }
-        const desc = hullDesc(R, p.part, p.inst, meshOf);
-        if (!desc) continue;
-        desc.setFriction(0.6).setRestitution(0.1).setDensity(0).setCollisionGroups(grp(ROBOT, owner === chassis.id ? GROUND | ELEM : ELEM));
-        this.world.createCollider(desc, target);
+        // game elements touch the real shape (a stopper, a U-channel, a funnel): triangle mesh; the floor only
+        // needs the convex hull (and only the chassis can touch the floor)
+        const tm = trimeshDesc(R, p.part, p.inst, meshOf);
+        const hull = hullDesc(R, p.part, p.inst, meshOf);
+        if (tm) {
+          tm.setFriction(0.6).setRestitution(0.1).setDensity(0).setCollisionGroups(grp(ROBOT, ELEM));
+          this.world.createCollider(tm, target);
+          if (owner === chassis.id && hull) this.world.createCollider(hull.setFriction(0.6).setRestitution(0.1).setDensity(0).setCollisionGroups(grp(ROBOT, GROUND)), target);
+        } else if (hull) {
+          hull.setFriction(0.6).setRestitution(0.1).setDensity(0).setCollisionGroups(grp(ROBOT, owner === chassis.id ? GROUND | ELEM : ELEM));
+          this.world.createCollider(hull, target);
+        }
+        const st = stopShape(R, p.part, p.inst, meshOf, owner);
+        if (st) {
+          if (owner !== chassis.id) (this.armShapes.get(owner) ?? this.armShapes.set(owner, []).get(owner)!).push(st.shrunk);
+          this.obstacles.push(st.full);
+        }
       }
     }
 
@@ -245,7 +275,91 @@ export class Sim {
     this.computeLimits();
     this.computeInSigns();
     this.frontYaw = this.autoFront();
+    this.prepareStops();
     this.updateKinematics(0);
+    this.syncWorld();
+  }
+
+  // ------------------------------------------------------------------ hard stops (arms hit the frame / stoppers)
+  /** Moving body ids from `id` up to the chassis. */
+  private chainOf(id: number) {
+    const out = new Set<number>([id]);
+    let cur: number | null = this.rig.bodies[id].parent;
+    while (cur !== null) {
+      out.add(cur);
+      cur = this.rig.bodies[cur].parent;
+    }
+    return out;
+  }
+  private related(a: number, b: number) {
+    return this.chainOf(a).has(b) || this.chainOf(b).has(a);
+  }
+  private prepareStops() {
+    // only arms / servos stop on things; spinners turn freely (their parts are round)
+    for (const [id, list] of this.armShapes) {
+      const act = this.rig.actuators[this.rig.bodies[id].drive?.actuator ?? -1];
+      const m = this.moving.get(id);
+      if (!act || act.role !== 'arm' || !m) {
+        this.armShapes.delete(id);
+        continue;
+      }
+      // parts around the pivot (hub, shaft, gear) are the joint itself
+      const keep = list.filter((s) => {
+        const c = s.box.getCenter(new Vector3());
+        const d = c.clone().sub(m.pivot);
+        const radial = d.addScaledVector(m.axis, -d.dot(m.axis)).length();
+        return radial > 0.022 || s.box.getSize(new Vector3()).length() > 0.09;
+      });
+      this.armShapes.set(id, keep);
+      // what already overlaps at rest is part of the build (a joint, a part that sits in another): ignore it
+      for (const [k, a] of keep.entries())
+        for (const [j, o] of this.obstacles.entries()) {
+          if (o.owner === id || (o.owner !== this.chassisId && this.related(id, o.owner))) continue;
+          if (a.box.intersectsBox(o.box) && intersects(a, IDENT, o, IDENT)) this.restOverlap.add(`${id}:${k}:${j}`);
+        }
+    }
+  }
+  /** Pose (relative to the chassis, CAD m frame) of a moving body if its own angle were `angle`. */
+  private relPose(id: number, angle?: number): Matrix4 {
+    const b = this.moving.get(id);
+    const parentId = this.rig.bodies[id].parent;
+    let parent = new Matrix4();
+    if (parentId !== null && parentId !== this.chassisId) {
+      // nearest moving ancestor
+      let cur: number | null = parentId;
+      while (cur !== null && cur !== this.chassisId && !this.moving.has(cur)) cur = this.rig.bodies[cur].parent;
+      if (cur !== null && cur !== this.chassisId) parent = this.relPose(cur);
+    }
+    if (!b) return parent;
+    const a = angle ?? b.angle;
+    return parent
+      .multiply(new Matrix4().makeTranslation(b.pivot.x, b.pivot.y, b.pivot.z))
+      .multiply(new Matrix4().makeRotationAxis(b.axis, a))
+      .multiply(new Matrix4().makeTranslation(-b.pivot.x, -b.pivot.y, -b.pivot.z));
+  }
+  /** Would moving body `id` hit something at this angle? */
+  private blockedAt(id: number, angle: number) {
+    const shapes = this.armShapes.get(id);
+    if (!shapes?.length) return false;
+    const M = this.relPose(id, angle);
+    const poses = new Map<number, Matrix4>();
+    const poseOf = (owner: number) => {
+      if (owner === this.chassisId) return IDENT;
+      let p = poses.get(owner);
+      if (!p) poses.set(owner, (p = this.relPose(owner)));
+      return p;
+    };
+    for (const [k, a] of shapes.entries()) {
+      const ab = a.box.clone().applyMatrix4(M);
+      for (const [j, o] of this.obstacles.entries()) {
+        if (o.owner === id || this.restOverlap.has(`${id}:${k}:${j}`)) continue;
+        if (o.owner !== this.chassisId && this.related(id, o.owner)) continue;
+        const P = poseOf(o.owner);
+        if (!ab.intersectsBox(o.box.clone().applyMatrix4(P))) continue;
+        if (intersects(a, M, o, P)) return true;
+      }
+    }
+    return false;
   }
 
   /**
@@ -317,7 +431,16 @@ export class Sim {
   // ------------------------------------------------------------------ elements
   addElement(kind: ElementKind, at?: Vector3) {
     const spec = kind === 'pollen' ? ELEMENTS.pollen : ELEMENTS.nectar;
-    const p = at ?? new Vector3((Math.random() - 0.5) * (2 * HALF - 0.3), spec.r + 0.02, (Math.random() - 0.5) * (2 * HALF - 0.3));
+    let p = at;
+    if (!p) {
+      // somewhere on the tiles, but never inside / under the robot
+      const c = this.com.clone().applyMatrix4(this.chassisMatrix());
+      for (let k = 0; k < 40; k++) {
+        p = new Vector3((Math.random() - 0.5) * (2 * HALF - 0.3), spec.r + 0.02, (Math.random() - 0.5) * (2 * HALF - 0.3));
+        if (Math.hypot(p.x - c.x, p.z - c.z) > this.reach + spec.r + 0.05) break;
+      }
+    }
+    p = p!;
     const body = this.world.createRigidBody(this.R.RigidBodyDesc.dynamic().setTranslation(p.x, p.y, p.z).setCcdEnabled(true).setLinearDamping(0.05).setAngularDamping(0.35));
     // squishy foam balls: the collider is a little smaller than the ball you see
     this.world.createCollider(
@@ -346,6 +469,7 @@ export class Sim {
     this.chassis.setAngvel({ x: 0, y: 0, z: 0 }, true);
     for (const m of this.moving.values()) m.angle = 0;
     this.updateKinematics(0);
+    this.syncWorld();
   }
 
   /** "front-left" etc. for a drive motor, from where its wheels sit relative to the current front. */
@@ -418,8 +542,33 @@ export class Sim {
   }
 
   // ------------------------------------------------------------------ kinematics of mechanisms
-  private updateKinematics(dt: number) {
+  /** Chassis pose integrated one step ahead with its current velocity. */
+  private predictedChassis(dt: number) {
+    const t = this.chassis.translation(), r = this.chassis.rotation();
+    const lv = this.chassis.linvel(), av = this.chassis.angvel();
+    const q = new Quaternion(r.x, r.y, r.z, r.w);
+    const w = new Vector3(av.x, av.y, av.z);
+    const ang = w.length() * dt;
+    if (ang > 1e-9) q.premultiply(new Quaternion().setFromAxisAngle(w.normalize(), ang));
+    return new Matrix4().compose(new Vector3(t.x + lv.x * dt, t.y + lv.y * dt, t.z + lv.z * dt), q, new Vector3(1, 1, 1));
+  }
+  /** After a physics step: every mechanism's world pose from where the chassis actually is now. */
+  private syncWorld() {
     const cm = this.chassisMatrix();
+    for (const id of this.order) {
+      const m = this.moving.get(id)!;
+      const parent = m.rig.parent === null || m.rig.parent === this.chassisId ? cm : this.parentWorld(m.rig.parent, cm);
+      m.world.copy(parent).multiply(this.jointLocal(m));
+    }
+  }
+  private jointLocal(m: MovingBody) {
+    return new Matrix4()
+      .makeTranslation(m.pivot.x, m.pivot.y, m.pivot.z)
+      .multiply(new Matrix4().makeRotationAxis(m.axis, m.angle))
+      .multiply(new Matrix4().makeTranslation(-m.pivot.x, -m.pivot.y, -m.pivot.z));
+  }
+  private updateKinematics(dt: number, chassisAt?: Matrix4) {
+    const cm = chassisAt ?? this.chassisMatrix();
     for (const id of this.order) {
       const m = this.moving.get(id)!;
       m.angle += m.speed * dt;
@@ -473,6 +622,17 @@ export class Sim {
       }
       m.speed = w;
     }
+    // hard stops: an arm that would run into the frame / a stopper stays where it is
+    this.stopped = {};
+    for (const a of this.rig.actuators) {
+      if (a.role !== 'arm') continue;
+      const bodies = [...this.moving.values()].filter((m) => m.rig.drive?.actuator === a.id && m.speed !== 0);
+      if (!bodies.length) continue;
+      if (bodies.some((m) => this.armShapes.has(m.rig.id) && this.blockedAt(m.rig.id, m.angle + m.speed * dt) && !this.blockedAt(m.rig.id, m.angle))) {
+        for (const m of bodies) m.speed = 0;
+        this.stopped[a.id] = true;
+      }
+    }
 
     // 2. traction
     this.traction(power, dt);
@@ -480,10 +640,12 @@ export class Sim {
     // 3. soft intake rollers grab elements
     this.rollerForces(dt);
 
-    // 4. mechanisms + physics
-    this.updateKinematics(dt);
+    // 4. mechanisms + physics: kinematic targets use where the chassis will be after this step (else the
+    // mechanisms trail the chassis by a step and visibly slide back and forth as it speeds up / slows down)
+    this.updateKinematics(dt, this.predictedChassis(dt));
     this.world.step();
     this.t += dt;
+    this.syncWorld();
 
     // safety net: anything that escapes the field comes back
     for (const e of this.elements) {
@@ -633,7 +795,7 @@ export class Sim {
       const a = this.rig.actuators[d.actuator];
       if (a.role === 'arm') angles[a.id] = ((m.angle / (d.ratio || 1)) * 180) / Math.PI;
     }
-    return { speed: Math.hypot(lv.x, lv.z), heading: (Math.atan2(f.x, f.z) * 180) / Math.PI, motors: this.motorPower, angles, tipped: up.y < 0.5 };
+    return { speed: Math.hypot(lv.x, lv.z), heading: (Math.atan2(f.x, f.z) * 180) / Math.PI, motors: this.motorPower, angles, tipped: up.y < 0.5, stopped: { ...this.stopped } };
   }
 
   dispose() {
@@ -683,4 +845,81 @@ function hullDesc(R: R, part: CatalogPart, inst: { position: [number, number, nu
   const c = b.getCenter(new Vector3()).applyMatrix4(M).multiplyScalar(MM);
   const q = q4(inst.quaternion);
   return R.ColliderDesc.cuboid(s.x, s.y, s.z).setTranslation(c.x, c.y, c.z).setRotation({ x: q.x, y: q.y, z: q.z, w: q.w });
+}
+
+const IDENT = new Matrix4();
+
+/** Triangle mesh of a part in CAD world metres (null when there's no mesh or it's huge). */
+function trimeshDesc(R: R, part: CatalogPart, inst: { position: [number, number, number]; quaternion: [number, number, number, number] }, meshOf: (p: CatalogPart) => { triangles: Float32Array } | null) {
+  const tri = meshOf(part)?.triangles;
+  if (!tri || tri.length < 9 || tri.length / 9 > 40000) return null;
+  const M = instanceMatrix(inst);
+  const nv = tri.length / 3;
+  const verts = new Float32Array(tri.length);
+  const v = new Vector3();
+  for (let i = 0; i < nv; i++) {
+    v.set(tri[i * 3], tri[i * 3 + 1], tri[i * 3 + 2]).applyMatrix4(M).multiplyScalar(MM);
+    verts[i * 3] = v.x;
+    verts[i * 3 + 1] = v.y;
+    verts[i * 3 + 2] = v.z;
+  }
+  const idx = new Uint32Array(nv);
+  for (let i = 0; i < nv; i++) idx[i] = i;
+  try {
+    return R.ColliderDesc.trimesh(verts, idx);
+  } catch {
+    return null;
+  }
+}
+
+/** Hull points of a part (CAD world m), sampled like hullDesc. */
+function hullPoints(part: CatalogPart, inst: { position: [number, number, number]; quaternion: [number, number, number, number] }, meshOf: (p: CatalogPart) => { triangles: Float32Array } | null) {
+  const M = instanceMatrix(inst);
+  const tri = meshOf(part)?.triangles;
+  const pts: Vector3[] = [];
+  if (tri && tri.length >= 36) {
+    const nv = tri.length / 3;
+    const step = Math.max(1, Math.floor(nv / 64));
+    for (let i = 0; i < nv; i += step) pts.push(new Vector3(tri[i * 3], tri[i * 3 + 1], tri[i * 3 + 2]).applyMatrix4(M).multiplyScalar(MM));
+  } else {
+    const b = part.bounds ? new Box3(v3(part.bounds[0]), v3(part.bounds[1])) : new Box3().setFromCenterAndSize(new Vector3(), v3(part.dimensions ?? [10, 10, 10]));
+    for (const x of [b.min.x, b.max.x]) for (const y of [b.min.y, b.max.y]) for (const z of [b.min.z, b.max.z]) pts.push(new Vector3(x, y, z).applyMatrix4(M).multiplyScalar(MM));
+  }
+  return pts;
+}
+
+/** Convex shapes for the hard-stop check: full size (obstacle) and ~1 mm smaller (moving arm part). */
+function stopShape(R: R, part: CatalogPart, inst: { position: [number, number, number]; quaternion: [number, number, number, number] }, meshOf: (p: CatalogPart) => { triangles: Float32Array } | null, owner: number) {
+  if (isHardware(part)) return null;
+  const pts = hullPoints(part, inst, meshOf);
+  if (pts.length < 4) return null;
+  const box = new Box3().setFromPoints(pts);
+  const c = box.getCenter(new Vector3());
+  const size = box.getSize(new Vector3()).length();
+  const k = Math.max(0.5, 1 - 0.0012 / Math.max(1e-3, size / 2));
+  const make = (scale: number): StopShape | null => {
+    const arr = new Float32Array(pts.length * 3);
+    pts.forEach((p, i) => {
+      const q = p.clone().sub(c).multiplyScalar(scale).add(c);
+      arr[i * 3] = q.x;
+      arr[i * 3 + 1] = q.y;
+      arr[i * 3 + 2] = q.z;
+    });
+    const shape = new R.ConvexPolyhedron(arr, null);
+    return { shape, box: new Box3().setFromPoints(pts.map((p) => p.clone().sub(c).multiplyScalar(scale).add(c))), owner };
+  };
+  const full = make(1), shrunk = make(k);
+  if (!full || !shrunk) return null;
+  return { full, shrunk };
+}
+
+const _p = new Vector3(), _q = new Quaternion(), _s = new Vector3(), _p2 = new Vector3(), _q2 = new Quaternion();
+function intersects(a: StopShape, A: Matrix4, b: StopShape, B: Matrix4) {
+  A.decompose(_p, _q, _s);
+  B.decompose(_p2, _q2, _s);
+  try {
+    return a.shape.intersectsShape({ x: _p.x, y: _p.y, z: _p.z }, { x: _q.x, y: _q.y, z: _q.z, w: _q.w }, b.shape, { x: _p2.x, y: _p2.y, z: _p2.z }, { x: _q2.x, y: _q2.y, z: _q2.z, w: _q2.w });
+  } catch {
+    return false;
+  }
 }
