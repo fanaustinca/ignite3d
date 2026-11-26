@@ -9,6 +9,8 @@ import { UploadStudio } from './components/UploadStudio';
 import { CheckPanel } from './components/CheckPanel';
 import { CloudModal } from './components/CloudModal';
 import { startCloud, useCloudStore } from './services/cloud';
+import { initProjects, saveProjectBuild, useProjectStore } from './services/projects';
+import { ProjectsModal } from './components/ProjectsModal';
 import { runRobotCheck, startRobotCheck, useCheckStore } from './services/robotCheck';
 import { Viewport, viewportBus } from './viewport/Viewport';
 import { redo, undo, useCadStore } from './store/useCadStore';
@@ -16,7 +18,7 @@ import { loadFullCatalog, proceduralVisual, pruneMeshCache } from './services/as
 import { worldSnaps } from './lib/snap';
 import { Group, Mesh } from 'three';
 import { GLTFExporter } from 'three/examples/jsm/exporters/GLTFExporter.js';
-import { listCustomParts } from './services/customParts';
+import { deleteCustomPart, listCustomParts, saveCustomPart } from './services/customParts';
 import { readHashBuild, toBuildFile } from './lib/share';
 import { download, buildStep, bomRows, buildStl, buildManifest } from './export/files';
 import { buildExampleRobot } from './lib/example';
@@ -58,6 +60,7 @@ function useBoot() {
         setTimeout(() => viewportBus.fit(), 300);
       });
     }
+    initProjects();
     loadBackup().then((b) => b && useCadStore.getState().set({ backupBuild: b }));
     useCadStore.temporal.getState().clear();
     // 2. catalog: built-in now, remote + team + custom parts merged when they arrive
@@ -84,6 +87,7 @@ function useBoot() {
   useEffect(() => {
     let t: ReturnType<typeof setTimeout> | undefined;
     let pending: PlacedInstance[] | null = null;
+    let pendingProject: string | null = null;
     let warned = false;
     const flush = () => {
       clearTimeout(t);
@@ -91,6 +95,7 @@ function useBoot() {
       const list = pending;
       pending = null;
       const ok = saveBuild(list);
+      if (pendingProject) void saveProjectBuild(pendingProject, list);
       ok.then((good) => {
         useCadStore.getState().set({ savedAt: good ? Date.now() : null });
         if (!good && !warned) {
@@ -102,6 +107,7 @@ function useBoot() {
     const unsub = useCadStore.subscribe((s, p) => {
       if (s.instances === p.instances) return;
       pending = s.instances;
+      pendingProject = useProjectStore.getState().activeId;
       clearTimeout(t);
       t = setTimeout(flush, 300);
     });
@@ -235,6 +241,8 @@ function useShortcuts() {
 // Small test/automation hook (used by the headless QA suite).
 (window as unknown as Record<string, unknown>).__ignite = {
   cloud: useCloudStore,
+  projects: useProjectStore,
+  customParts: { save: saveCustomPart, remove: deleteCustomPart, list: listCustomParts },
   version: APP_VERSION,
   store: useCadStore,
   undo,
@@ -298,6 +306,7 @@ export default function App() {
       {modal === 'help' && <HelpModal />}
       {modal === 'share' && <ShareModal />}
       {modal === 'cloud' && <CloudModal />}
+      {modal === 'projects' && <ProjectsModal />}
       {modal === 'bom' && <BomModal />}
       {modal === 'export' && <ExportModal />}
       {modal === 'settings' && <SettingsModal />}

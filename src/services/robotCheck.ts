@@ -9,7 +9,10 @@ import { analyzeStructure, type StrengthReport } from '../lib/analysis/strength'
 
 export interface CheckState {
   open: boolean;
+  /** Collision detection on (checked live while building). Off = no collision checks, highlights or toasts. */
   live: boolean;
+  /** Tip-over stability check + floor overlay on. */
+  stability: boolean;
   running: boolean;
   progress: number;
   collisions: Collision[];
@@ -23,17 +26,27 @@ export interface CheckState {
 }
 
 const LIVE_KEY = 'ignite3d-live-collisions';
-const liveDefault = (() => {
+const STAB_KEY = 'ignite3d-stability-check';
+const flag = (k: string) => {
   try {
-    return localStorage.getItem(LIVE_KEY) !== '0';
+    return localStorage.getItem(k) !== '0';
   } catch {
     return true;
   }
-})();
+};
+const liveDefault = flag(LIVE_KEY);
+const save = (k: string, on: boolean) => {
+  try {
+    localStorage.setItem(k, on ? '1' : '0');
+  } catch {
+    /* ignore */
+  }
+};
 
 export const useCheckStore = create<CheckState>()((set) => ({
   open: false,
   live: liveDefault,
+  stability: flag(STAB_KEY),
   running: false,
   progress: 0,
   collisions: [],
@@ -42,12 +55,8 @@ export const useCheckStore = create<CheckState>()((set) => ({
   reportStale: true,
   focus: null,
   set: (p) => {
-    if (p.live !== undefined)
-      try {
-        localStorage.setItem(LIVE_KEY, p.live ? '1' : '0');
-      } catch {
-        /* ignore */
-      }
+    if (p.live !== undefined) save(LIVE_KEY, p.live);
+    if (p.stability !== undefined) save(STAB_KEY, p.stability);
     set(p);
   },
 }));
@@ -105,9 +114,11 @@ export async function runRobotCheck() {
     await ensureMeshes(st0.instances.map((i) => i.sku));
     const st = useCadStore.getState();
     const instances = st.instances;
-    const col = await findCollisions(instances, st.catalog, meshOf, {
-      onProgress: (d, t) => id === runId && useCheckStore.getState().set({ progress: t ? d / t : 1 }),
-    });
+    const col = useCheckStore.getState().live
+      ? await findCollisions(instances, st.catalog, meshOf, {
+          onProgress: (d, t) => id === runId && useCheckStore.getState().set({ progress: t ? d / t : 1 }),
+        })
+      : { collisions: [], ms: 0, pairsChecked: 0 };
     if (id !== runId) return;
     const report = analyzeStructure(instances, st.catalog, meshOf);
     const fresh = useCadStore.getState().instances === instances;

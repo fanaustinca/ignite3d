@@ -6,7 +6,10 @@ import { compressToBase64, decompressFromBase64 } from 'lz-string';
 import type { PlacedInstance } from '../types/cad';
 import { useCadStore } from '../store/useCadStore';
 import { fromBuildFile, toBuildFile } from '../lib/share';
-import { CAD_COLLECTION, firebaseConfig } from '../config/firebase';
+import { CAD_COLLECTION, PARTS_COLLECTION, firebaseConfig } from '../config/firebase';
+import { listCustomParts, customPartMesh, saveCustomPart } from './customParts';
+import { fetchGlbVisual, forgetVisual } from './assetLoader';
+import type { CatalogPart } from '../types/cad';
 import { APP_VERSION } from '../version';
 
 export interface CloudDoc {
@@ -18,6 +21,17 @@ export interface CloudDoc {
   updatedAt: number;
   createdAt: number;
   app: string;
+  /** Custom parts the build uses: SKU -> content id in the `customParts` collection. */
+  custom?: Record<string, string>;
+}
+
+/** A custom part stored online (immutable, addressed by a hash of its content). Mesh is split into base64 chunks. */
+export interface CloudPartMeta {
+  sku: string;
+  part: string; // JSON of the CatalogPart (name, mass, snap points…)
+  chunks: number;
+  bytes: number;
+  createdAt: number;
 }
 
 interface Backend {
@@ -26,6 +40,10 @@ interface Backend {
   create(code: string, doc: CloudDoc): Promise<boolean>;
   write(code: string, doc: CloudDoc): Promise<void>;
   watch(code: string, cb: (doc: CloudDoc | null) => void, onError: (e: unknown) => void): () => void;
+  getPart(id: string): Promise<CloudPartMeta | null>;
+  getChunk(id: string, i: number): Promise<string | null>;
+  /** Write every chunk + the meta document in one atomic batch. */
+  createPart(id: string, meta: CloudPartMeta, chunks: string[]): Promise<void>;
 }
 
 // ---------------------------------------------------------------- backends
@@ -58,6 +76,17 @@ function mockBackend(): Backend {
       const on = (e: StorageEvent) => e.key === k(code) && cb(read(code));
       window.addEventListener('storage', on);
       return () => window.removeEventListener('storage', on);
+    },
+    async getPart(id) {
+      const s = localStorage.getItem(`ignite3d-mockpart:${id}`);
+      return s ? (JSON.parse(s) as CloudPartMeta) : null;
+    },
+    async getChunk(id, i) {
+      return localStorage.getItem(`ignite3d-mockpart:${id}:${i}`);
+    },
+    async createPart(id, meta, chunks) {
+      chunks.forEach((c, i) => localStorage.setItem(`ignite3d-mockpart:${id}:${i}`, c));
+      localStorage.setItem(`ignite3d-mockpart:${id}`, JSON.stringify(meta));
     },
   };
 }
@@ -109,6 +138,23 @@ function firestoreBackend(): Backend {
         dead = true;
         stop?.();
       };
+    },
+    async getPart(id) {
+      const { fs, db } = await sdk;
+      const snap = await fs.getDoc(fs.doc(db, PARTS_COLLECTION, id));
+      return snap.exists() ? (snap.data() as CloudPartMeta) : null;
+    },
+    async getChunk(id, i) {
+      const { fs, db } = await sdk;
+      const snap = await fs.getDoc(fs.doc(db, PARTS_COLLECTION, id, 'chunks', String(i)));
+      return snap.exists() ? (snap.data() as { data: string }).data : null;
+    },
+    async createPart(id, meta, chunks) {
+      const { fs, db } = await sdk;
+      const b = fs.writeBatch(db);
+      chunks.forEach((data, i) => b.set(fs.doc(db, PARTS_COLLECTION, id, 'chunks', String(i)), { data }));
+      b.set(fs.doc(db, PARTS_COLLECTION, id), meta);
+      await b.commit();
     },
   };
 }
@@ -209,6 +255,135 @@ export function forgetCode(code: string) {
   if (useCloudStore.getState().code === code) leaveCloud();
 }
 
+// ---------------------------------------------------------------- custom parts
+
+const CHUNK = 700_000; // base64 chars per chunk document (Firestore documents are capped at 1 MiB)
+const MAX_PART_BYTES = 6_000_000; // one batch commit is capped at 10 MiB
+function toB64(buf: ArrayBuffer) {
+  const u = new Uint8Array(buf);
+  let s = '';
+  for (let i = 0; i < u.length; i += 0x8000) s += String.fromCharCode(...u.subarray(i, i + 0x8000));
+  return btoa(s);
+}
+function fromB64(b64: string) {
+  const s = atob(b64);
+  const u = new Uint8Array(s.length);
+  for (let i = 0; i < s.length; i++) u[i] = s.charCodeAt(i);
+  return u.buffer;
+}
+async function contentId(partJson: string, glb: ArrayBuffer) {
+  const enc = new TextEncoder().encode(partJson);
+  const all = new Uint8Array(enc.length + glb.byteLength);
+  all.set(enc);
+  all.set(new Uint8Array(glb), enc.length);
+  const h = new Uint8Array(await crypto.subtle.digest('SHA-256', all));
+  return [...h.slice(0, 16)].map((b) => b.toString(16).padStart(2, '0')).join('');
+}
+/** Custom parts uploaded (or confirmed online) this session: SKU -> {id, json} so unchanged parts are not re-hashed. */
+const uploaded = new Map<string, { id: string; json: string }>();
+const tooBig = new Set<string>();
+
+/** Make sure every custom part used by the build is online. Returns SKU -> content id. */
+async function uploadUsedCustomParts(instances: PlacedInstance[]): Promise<Record<string, string>> {
+  const cat = useCadStore.getState().catalog;
+  const skus = [...new Set(instances.map((i) => i.sku))].filter((s) => cat[s]?.isCustom);
+  if (!skus.length) return {};
+  const local = new Map((await listCustomParts()).map((p) => [p.sku, p]));
+  const out: Record<string, string> = {};
+  for (const sku of skus) {
+    const part = local.get(sku) ?? cat[sku];
+    const json = JSON.stringify({ ...part, isCustom: true, category: 'Custom' });
+    const prev = uploaded.get(sku);
+    if (prev && prev.json === json) {
+      out[sku] = prev.id;
+      continue;
+    }
+    const glb = await customPartMesh(sku);
+    if (!glb) continue; // mesh missing in this browser: nothing to share
+    if (glb.byteLength > MAX_PART_BYTES) {
+      if (!tooBig.has(sku)) {
+        tooBig.add(sku);
+        useCadStore.getState().toast(`Custom part ${part.name} is over 6 MB, so it can't be shared online — send its bundle instead.`, 'warn');
+      }
+      continue;
+    }
+    const id = await contentId(json, glb);
+    if (!(await be().getPart(id))) {
+      const b64 = toB64(glb);
+      const chunks: string[] = [];
+      for (let i = 0; i < b64.length; i += CHUNK) chunks.push(b64.slice(i, i + CHUNK));
+      await be().createPart(id, { sku, part: json, chunks: chunks.length, bytes: glb.byteLength, createdAt: Date.now() }, chunks);
+    }
+    uploaded.set(sku, { id, json });
+    out[sku] = id;
+  }
+  return out;
+}
+
+/** Fetch the custom parts a cloud file uses that this browser doesn't have (or has a different version of). */
+const fetched = new Set<string>();
+/** Downloaded parts, re-added if a later catalog load (boot, settings) replaces the catalog without them. */
+const downloaded = new Map<string, CatalogPart>();
+async function downloadCustomParts(custom: Record<string, string> | undefined) {
+  if (!custom) return 0;
+  const local = new Map((await listCustomParts()).map((p) => [p.sku, p]));
+  let n = 0;
+  for (const [sku, id] of Object.entries(custom)) {
+    if (fetched.has(id) || uploaded.get(sku)?.id === id) continue;
+    const have = local.get(sku);
+    if (have) {
+      const glb = await customPartMesh(sku);
+      if (glb && (await contentId(JSON.stringify({ ...have, isCustom: true, category: 'Custom' }), glb)) === id) {
+        fetched.add(id);
+        continue;
+      }
+    }
+    try {
+      const meta = await be().getPart(id);
+      if (!meta) continue;
+      const parts: string[] = [];
+      for (let i = 0; i < meta.chunks; i++) {
+        const c = await be().getChunk(id, i);
+        if (c == null) throw new Error('missing chunk');
+        parts.push(c);
+      }
+      const part = JSON.parse(meta.part) as CatalogPart;
+      const glb = fromB64(parts.join(''));
+      await saveCustomPart(part, glb);
+      fetched.add(id);
+      uploaded.set(sku, { id, json: meta.part });
+      const st = useCadStore.getState();
+      const entry: CatalogPart = { ...part, isCustom: true, category: 'Custom' };
+      downloaded.set(sku, entry);
+      st.setCatalog([...Object.values(st.catalog).filter((p) => p.sku !== sku), entry]);
+      forgetVisual(sku);
+      const v = await fetchGlbVisual(useCadStore.getState().catalog[sku], st.assetConfig);
+      if (v) useCadStore.getState().setAssetStatus(sku, 'custom');
+      n++;
+    } catch (e) {
+      console.warn('custom part download failed', sku, e);
+    }
+  }
+  if (n) {
+    useCadStore.getState().bumpVisuals();
+    useCadStore.getState().toast(`Loaded ${n} custom part${n > 1 ? 's' : ''} from the cloud file`, 'ok');
+  }
+  return n;
+}
+
+// ---------------------------------------------------------------- project hooks (set by services/projects)
+
+export interface ProjectHooks {
+  beforeOpen(code: string, name: string): Promise<void>;
+  linked(code: string, name: string): void;
+  renamed(code: string, name: string): void;
+  left(code: string): void;
+}
+let hooks: ProjectHooks | null = null;
+export function registerProjectHooks(h: ProjectHooks) {
+  hooks = h;
+}
+
 // ---------------------------------------------------------------- sync engine
 
 const session = Math.random().toString(36).slice(2, 12);
@@ -252,8 +427,9 @@ async function push() {
     return;
   }
   setC({ status: 'saving' });
-  const doc: CloudDoc = { data, name: useCloudStore.getState().name, parts: instances.length, rev: ++rev, by: session, updatedAt: Date.now(), createdAt, app: APP_VERSION };
   try {
+    const custom = await uploadUsedCustomParts(instances);
+    const doc: CloudDoc = { data, name: useCloudStore.getState().name, parts: instances.length, rev: ++rev, by: session, updatedAt: Date.now(), createdAt, app: APP_VERSION, ...(Object.keys(custom).length ? { custom } : {}) };
     await be().write(code, doc);
     if (useCloudStore.getState().code !== code) return;
     lastData = data;
@@ -267,7 +443,10 @@ const errText = (e: unknown) => (e instanceof Error ? e.message : String(e)).rep
 
 function onRemote(code: string, doc: CloudDoc | null) {
   if (useCloudStore.getState().code !== code || !doc) return;
-  if (doc.name !== useCloudStore.getState().name) setC({ name: doc.name });
+  if (doc.name !== useCloudStore.getState().name) {
+    setC({ name: doc.name });
+    hooks?.renamed(code, doc.name);
+  }
   rev = Math.max(rev, doc.rev);
   if (doc.by === session || doc.data === lastData) return;
   if (pending) return; // our unsaved edit is about to overwrite it (last write wins)
@@ -276,6 +455,7 @@ function onRemote(code: string, doc: CloudDoc | null) {
   lastData = doc.data;
   applyRemote(list);
   setC({ remoteAt: Date.now(), status: 'saved', savedAt: doc.updatedAt });
+  void downloadCustomParts(doc.custom);
 }
 
 function bind(code: string, doc: CloudDoc) {
@@ -287,6 +467,7 @@ function bind(code: string, doc: CloudDoc) {
   setC({ code, name: doc.name, status: 'saved', error: null, savedAt: doc.updatedAt, remoteAt: null });
   lsSet(LS_ACTIVE, code);
   remember(code, doc.name);
+  hooks?.linked(code, doc.name);
   unsubLocal = useCadStore.subscribe((s, p) => {
     if (s.instances === p.instances || applying || binding !== my) return;
     pending = true;
@@ -330,8 +511,9 @@ export async function createCloudFile(name: string): Promise<string | null> {
   }
   setC({ status: 'connecting', error: null });
   const now = Date.now();
-  const doc: CloudDoc = { data, name: name.trim().slice(0, 80) || 'Untitled robot', parts: instances.length, rev: 1, by: session, updatedAt: now, createdAt: now, app: APP_VERSION };
   try {
+    const custom = await uploadUsedCustomParts(instances);
+    const doc: CloudDoc = { data, name: name.trim().slice(0, 80) || 'Untitled robot', parts: instances.length, rev: 1, by: session, updatedAt: now, createdAt: now, app: APP_VERSION, ...(Object.keys(custom).length ? { custom } : {}) };
     for (let k = 0; k < 8; k++) {
       const code = newCode();
       if (await be().create(code, doc)) {
@@ -347,7 +529,7 @@ export async function createCloudFile(name: string): Promise<string | null> {
 }
 
 /** Open an online CAD file by its 6-digit code (replaces the build on screen). */
-export async function openCloudFile(code: string, opts: { quiet?: boolean } = {}): Promise<boolean> {
+export async function openCloudFile(code: string, opts: { quiet?: boolean; fromProject?: boolean } = {}): Promise<boolean> {
   code = code.replace(/\D/g, '');
   if (!isCode(code)) {
     setC({ error: 'Codes are 6 digits.' });
@@ -366,7 +548,11 @@ export async function openCloudFile(code: string, opts: { quiet?: boolean } = {}
     }
     const list = decodeCad(doc.data);
     if (!list) throw new Error('the file is damaged');
-    stashLocal();
+    await downloadCustomParts(doc.custom);
+    if (useCloudStore.getState().code && useCloudStore.getState().code !== code) flushCloud();
+    if (hooks) {
+      if (!opts.fromProject) await hooks.beforeOpen(code, doc.name);
+    } else stashLocal();
     unbind();
     applyRemote(list);
     useCadStore.temporal.getState().clear();
@@ -380,10 +566,12 @@ export async function openCloudFile(code: string, opts: { quiet?: boolean } = {}
 }
 
 /** Stop syncing. The build stays on screen as a local copy. */
-export function leaveCloud() {
+export function leaveCloud(opts: { keepProject?: boolean } = {}) {
+  const code = useCloudStore.getState().code;
   void push();
   unbind();
   binding++;
+  if (code && !opts.keepProject) hooks?.left(code);
   lsSet(LS_ACTIVE, null);
   setC({ code: null, name: '', status: 'off', error: null, savedAt: null, remoteAt: null });
 }
@@ -407,6 +595,7 @@ export function renameCloudFile(name: string) {
   if (!st.code || n === st.name) return;
   setC({ name: n });
   remember(st.code, n);
+  hooks?.renamed(st.code, n);
   pending = true;
   lastData = ''; // force a write even though the parts did not change
   void push();
@@ -440,6 +629,14 @@ export function startCloud({ openedShare = false } = {}) {
     const active = lsGet<string | null>(LS_ACTIVE, null);
     if (active && isCode(active)) void openCloudFile(active, { quiet: true });
   }
+  useCadStore.subscribe((st, prev) => {
+    if (st.catalog === prev.catalog || !downloaded.size) return;
+    const missing = [...downloaded.values()].filter((p) => !st.catalog[p.sku]);
+    if (missing.length) {
+      st.setCatalog([...Object.values(st.catalog), ...missing]);
+      useCadStore.getState().bumpVisuals();
+    }
+  });
   window.addEventListener('pagehide', flushCloud);
   document.addEventListener('visibilitychange', () => document.visibilityState === 'hidden' && flushCloud());
 }

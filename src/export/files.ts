@@ -149,7 +149,7 @@ export function bomRows(instances: PlacedInstance[], catalog: Record<string, Cat
       custom: !!p.isCustom,
     });
   }
-  const order = ['Structure', 'Mounts', 'Motors & Servos', 'Shafts & Hubs', 'Gears & Slides', 'Wheels', 'Fasteners & Spacers', 'Custom'];
+  const order = ['Structure', 'Mounts', 'Motors & Servos', 'Shafts & Hubs', 'Gears & Slides', 'Wheels', 'Fasteners & Spacers', 'Electronics', 'Custom'];
   return rows.sort((a, b) => order.indexOf(a.category) - order.indexOf(b.category) || a.sku.localeCompare(b.sku));
 }
 

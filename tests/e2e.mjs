@@ -799,11 +799,98 @@ await test('cloud files: 6-digit code, autosave online, live sync between comput
   await pB.type('[data-testid="cloud-code-input"]', code);
   await pB.click('[data-testid="cloud-open"]');
   assert(await until(async () => (await gs(pB, () => window.__ignite.cloud.getState().code)) === code), 'reopened by typing the code');
+  // custom parts used by the robot are uploaded with it and downloaded by whoever opens the code
+  const CSKU = '9000-7777-0001';
+  await pA.evaluate(async (sku) => {
+    const I = window.__ignite;
+    const buf = await (await fetch('parts/1120-0002-0072.glb')).arrayBuffer();
+    const base = I.store.getState().catalog['1120-0002-0072'];
+    const part = { ...base, sku, name: 'Test custom bracket', isCustom: true, category: 'Custom' };
+    await I.customParts.save(part, buf);
+    const s = I.store.getState();
+    s.setCatalog([...Object.values(s.catalog), part]);
+    s.addInstances([{ instanceId: 'custom1', sku, position: [0, 200, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]);
+  }, CSKU);
+  assert(await until(async () => (await pA.evaluate(() => Object.keys(localStorage).some((k) => /^ignite3d-mockpart:[0-9a-f]{32}$/.test(k))))), 'custom part uploaded');
+  const cdoc = await pA.evaluate((c) => JSON.parse(localStorage.getItem('ignite3d-mockcad:' + c)), code);
+  assert(cdoc.custom && /^[0-9a-f]{32}$/.test(cdoc.custom[CSKU]), `file links the part ${JSON.stringify(cdoc.custom)}`);
+  // a "new computer": wipe the part locally, then open the code
+  await pB.evaluate(async (sku) => {
+    await window.__ignite.customParts.remove(sku);
+    window.__ignite.cloud.getState(); // keep B bound
+  }, CSKU);
+  await pB.reload({ waitUntil: 'load' });
+  assert(
+    await until(async () => (await gs(pB, (sku) => !!window.__ignite.store.getState().catalog[sku]?.isCustom, CSKU)) && (await gs(pB, (sku) => window.__ignite.customParts.list().then((l) => l.some((p) => p.sku === sku)), CSKU)), 10000),
+    'B downloaded the custom part',
+  );
+  assert((await gs(pB, (sku) => window.__ignite.store.getState().instances.some((i) => i.sku === sku), CSKU)), 'B has the custom instance');
   await pA.close();
   await pB.close();
   await page.evaluate(() => {
-    for (const k of Object.keys(localStorage)) if (k.startsWith('ignite3d-mockcad:') || k.startsWith('ignite3d-cloud-')) localStorage.removeItem(k);
+    for (const k of Object.keys(localStorage)) if (k.startsWith('ignite3d-mockcad:') || k.startsWith('ignite3d-mockpart:') || k.startsWith('ignite3d-cloud-')) localStorage.removeItem(k);
   });
+  await page.evaluate(() => window.__ignite.customParts.remove('9000-7777-0001'));
+});
+
+await test('REV hubs in the catalog; collision + stability checks can be turned off; projects keep separate robots', async () => {
+  const hub = await st(() => window.__ignite.store.getState().catalog['REV-31-1595']);
+  assert(hub && hub.category === 'Electronics' && hub.priceUsd === 375, `control hub ${hub && hub.category}`);
+  assert(await st(() => !!window.__ignite.store.getState().catalog['REV-31-1153']), 'expansion hub');
+
+  // switches in the Robot Check panel
+  await st(() => window.__ignite.check.store.getState().set({ open: true }));
+  await page.waitForSelector('[data-testid="toggle-stability"]');
+  await page.click('[data-testid="toggle-stability"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid="chip-stability"]')?.textContent.includes('off'));
+  assert(await page.$('[data-testid="stability-off"]'), 'stability section says off');
+  await page.click('[data-testid="live-collisions"]');
+  await page.waitForFunction(() => document.querySelector('[data-testid="chip-collisions"]')?.textContent.includes('off'));
+  assert((await st(() => window.__ignite.check.store.getState().collisions.length)) === 0, 'no collisions while off');
+  assert((await page.evaluate(() => [localStorage.getItem('ignite3d-live-collisions'), localStorage.getItem('ignite3d-stability-check')]).then((v) => v.join())) === '0,0', 'remembered');
+  await shot('31-check-toggles');
+  await page.click('[data-testid="toggle-stability"]');
+  await page.click('[data-testid="live-collisions"]');
+  await st(() => window.__ignite.check.store.getState().set({ open: false }));
+
+  // projects
+  const n0 = await st(() => window.__ignite.store.getState().instances.length);
+  const first = await st(() => window.__ignite.projects.getState().activeId);
+  const count0 = await st(() => window.__ignite.projects.getState().list.length);
+  assert(first, 'a first project exists');
+  const row = (id) => `[data-testid="project-row"][data-id="${id}"]`;
+  await page.click('[data-testid="open-projects"]');
+  await page.waitForSelector('[data-testid="project-new-name"]');
+  await page.type('[data-testid="project-new-name"]', 'Second bot');
+  await page.click('[data-testid="project-new"]');
+  await page.waitForFunction(() => window.__ignite.store.getState().instances.length === 0);
+  const second = await st(() => window.__ignite.projects.getState().activeId);
+  assert(second && second !== first, 'new project is open');
+  await st(() => window.__ignite.store.getState().addInstances([{ instanceId: 'p2a', sku: 'REV-31-1595', position: [0, 0, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false }]));
+  await sleep(600);
+  await page.click('[data-testid="open-projects"]');
+  await page.waitForSelector(`${row(first)} [data-testid="project-open"]`);
+  await shot('32-projects');
+  await page.click(`${row(first)} [data-testid="project-open"]`);
+  await page.waitForFunction((n) => window.__ignite.store.getState().instances.length === n, { timeout: 8000 }, n0);
+  assert((await st(() => window.__ignite.projects.getState().activeId)) === first, 'back on the first project');
+  await page.click('[data-testid="open-projects"]');
+  await page.waitForSelector(`${row(second)} [data-testid="project-open"]`);
+  await page.click(`${row(second)} [data-testid="project-open"]`);
+  await page.waitForFunction(() => window.__ignite.store.getState().instances.length === 1 && window.__ignite.store.getState().instances[0].sku === 'REV-31-1595', { timeout: 8000 });
+  // delete the open (second) project -> another project opens; the first is untouched
+  await page.click('[data-testid="open-projects"]');
+  await page.waitForSelector(`${row(second)} [data-testid="project-delete"]`);
+  await page.click(`${row(second)} [data-testid="project-delete"]`);
+  await page.click('[data-testid="project-delete-confirm"]');
+  await page.waitForFunction((c) => window.__ignite.projects.getState().list.length === c, { timeout: 8000 }, count0);
+  if ((await st(() => window.__ignite.projects.getState().activeId)) !== first) {
+    // the Projects panel is still open after deleting
+    await page.waitForSelector(`${row(first)} [data-testid="project-open"]`);
+    await page.click(`${row(first)} [data-testid="project-open"]`);
+  }
+  await page.waitForFunction((n) => window.__ignite.store.getState().instances.length === n, { timeout: 8000 }, n0);
+  await page.keyboard.press('Escape');
 });
 
 await test('no uncaught errors in the page', async () => {

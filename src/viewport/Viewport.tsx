@@ -982,7 +982,7 @@ function CheckOverlay() {
   const byId = useMemo(() => new Map(instances.map((i) => [i.instanceId, i])), [instances]);
   const clashIds = useMemo(() => new Set(cs.collisions.flatMap((c) => [c.a, c.b])), [cs.collisions]);
   const focus = new Set((cs.open && cs.focus) || []);
-  const st = cs.open ? cs.report?.stability : null;
+  const st = cs.open && cs.stability ? cs.report?.stability : null;
   const hullGeo = useMemo(() => {
     if (!st || st.hull.length < 2) return null;
     const pts = st.hull.map(([x, z]) => new Vector3(x, st.groundY + 0.6, z));

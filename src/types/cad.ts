@@ -42,6 +42,7 @@ export type Category =
   | 'Gears & Slides'
   | 'Wheels'
   | 'Fasteners & Spacers'
+  | 'Electronics'
   | 'Custom';
 
 export const CATEGORIES: Category[] = [
@@ -52,6 +53,7 @@ export const CATEGORIES: Category[] = [
   'Gears & Slides',
   'Wheels',
   'Fasteners & Spacers',
+  'Electronics',
   'Custom',
 ];
 

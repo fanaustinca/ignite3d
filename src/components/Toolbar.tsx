@@ -6,6 +6,7 @@ import {
   ClipboardList,
   Crosshair,
   Download,
+  FolderOpen,
   FlipHorizontal2,
   Github,
   Magnet,
@@ -32,6 +33,7 @@ import { viewportBus } from '../viewport/Viewport';
 import { useCheckStore } from '../services/robotCheck';
 import { FEEDBACK_FORM, PART_REQUEST_FORM } from '../config/links';
 import { useCloudStore } from '../services/cloud';
+import { useProjectStore } from '../services/projects';
 
 export function Toolbar() {
   const s = useCadStore();
@@ -41,6 +43,7 @@ export function Toolbar() {
   const check = useCheckStore();
   const nCol = check.collisions.length;
   const cloud = useCloudStore();
+  const project = useProjectStore((p) => p.list.find((m) => m.id === p.activeId));
   return (
     <header className="flex h-12 shrink-0 items-center gap-1 border-b border-line bg-panel px-2">
       <div className="mr-2 flex items-center gap-2 pl-1">
@@ -50,6 +53,14 @@ export function Toolbar() {
           v{APP_VERSION}
         </span>
       </div>
+      <Tip label="Projects — your saved robots">
+        <Btn data-testid="open-projects" onClick={() => s.set({ modal: 'projects' })} className="max-w-[170px]">
+          <FolderOpen size={16} className="shrink-0" />
+          <span className="hidden truncate min-[1800px]:inline" data-testid="project-current">
+            {project?.name ?? 'Projects'}
+          </span>
+        </Btn>
+      </Tip>
       <Divider />
       <Tip label="Select & move" keys="Esc">
         <Btn active={s.tool === 'select' && !s.placingSku} onClick={() => s.set({ tool: 'select', placingSku: null })} aria-label="Select tool">
@@ -111,13 +122,13 @@ export function Toolbar() {
       <Tip label='18" sizing cube' keys="B">
         <Btn data-testid="sizing-toggle" active={s.showSizingCube} onClick={() => s.set({ showSizingCube: !s.showSizingCube })}>
           <Box size={16} />
-          <span className="hidden min-[1700px]:inline">18″</span>
+          <span className="hidden min-[1900px]:inline">18″</span>
         </Btn>
       </Tip>
       <Tip label="Center of gravity" keys="C">
         <Btn active={s.showCoG} onClick={() => s.set({ showCoG: !s.showCoG })}>
           <Crosshair size={16} />
-          <span className="hidden min-[1700px]:inline">CoG</span>
+          <span className="hidden min-[1900px]:inline">CoG</span>
         </Btn>
       </Tip>
       <Tip label="Robot Check — collisions, joints & screws, tip-over stability" keys="K">
@@ -151,13 +162,13 @@ export function Toolbar() {
       <Tip label="Missing a part? Request it">
         <a data-testid="part-request-link" href={PART_REQUEST_FORM} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-ink hover:bg-panel-2">
           <PackagePlus size={16} />
-          <span className="hidden min-[1800px]:inline">Request a part</span>
+          <span className="hidden min-[2100px]:inline">Request a part</span>
         </a>
       </Tip>
       <Tip label="Send feedback / report a bug">
         <a data-testid="feedback-link" href={FEEDBACK_FORM} target="_blank" rel="noopener noreferrer" className="inline-flex items-center gap-1.5 rounded-md px-2 py-1.5 text-[12.5px] font-medium text-ink hover:bg-panel-2">
           <MessageSquare size={16} />
-          <span className="hidden min-[1800px]:inline">Feedback</span>
+          <span className="hidden min-[2100px]:inline">Feedback</span>
         </a>
       </Tip>
       <Tip label="Help & shortcuts" keys="?">

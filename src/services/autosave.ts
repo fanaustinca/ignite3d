@@ -43,6 +43,11 @@ function safeJson(s: string) {
 
 let last: SavedBuild | null = null;
 
+/** A different project was opened: its size is not a sign of lost work, so don't keep the old build as a backup. */
+export function resetAutosaveBaseline() {
+  last = null;
+}
+
 /** Write the build everywhere we can. Returns true if at least one store accepted it. */
 export async function saveBuild(instances: PlacedInstance[]): Promise<boolean> {
   const payload = { ...toBuildFile(instances), savedAt: Date.now() };

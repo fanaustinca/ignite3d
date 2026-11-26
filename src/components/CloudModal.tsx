@@ -130,7 +130,7 @@ export function CloudModal() {
             <CopyBtn text={c.code} label="Copy code" testid="cloud-copy-code" />
             <CopyBtn text={cloudLink(c.code)} label="Copy link" testid="cloud-copy-link" />
             <span className="flex-1" />
-            <Btn tone="ghost" data-testid="cloud-leave" onClick={leaveCloud}>
+            <Btn tone="ghost" data-testid="cloud-leave" onClick={() => leaveCloud()}>
               <LogOut size={14} /> Stop syncing
             </Btn>
           </div>
@@ -139,8 +139,8 @@ export function CloudModal() {
             code can view and edit. If two people move the same thing at the same moment, the last change wins.
           </p>
           {custom && (
-            <div className="mt-2 rounded-md bg-amber-500/10 px-2 py-1.5 text-[12px] text-amber-600">
-              Custom parts are stored in each browser, not online — teammates need the custom part bundle (Upload Custom Part → Export bundle) to see them.
+            <div className="mt-2 rounded-md bg-panel-2 px-2 py-1.5 text-[12px] text-muted" data-testid="cloud-custom-note">
+              Custom parts in this robot are uploaded with it, so teammates who open the code get them too (up to 6 MB each).
             </div>
           )}
         </section>

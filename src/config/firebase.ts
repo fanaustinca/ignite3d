@@ -25,3 +25,6 @@ export const firebaseConfig = {
 
 /** Firestore collection holding one document per CAD file; the document id is its 6-digit access code. */
 export const CAD_COLLECTION = 'cad';
+
+/** Custom parts shared with cloud files: `customParts/{contentId}` + `customParts/{id}/chunks/{n}` (base64 GLB). */
+export const PARTS_COLLECTION = 'customParts';

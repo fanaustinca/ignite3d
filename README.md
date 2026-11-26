@@ -22,7 +22,7 @@
   joint, the head always lands on the exposed outer face (never inside a wall), and the locknut is added.
 - **Move arrows + rotation rings** on the selection: drag a ring to turn the part about X / Y / Z, snapping
   in 45° steps (15° / 90° / free in the toolbar). `R` turns 90° about the mated hole axis.
-- **1,180 real goBILDA parts** converted from goBILDA's own STEP files — everything in goBILDA's kits and bundles
+- **1,180 real goBILDA parts** (plus the REV Control Hub and Expansion Hub) converted from goBILDA's own STEP files — everything in goBILDA's kits and bundles
   (FTC Starter Kit, Strafer, BeeLine, U-channel/goRAIL/beam bundles, motion starter packs…) plus popular series: U-channels (incl. the real slot / oval hole
   pattern), low-side & mini channels, goRAIL, beams, grid plates, quad blocks & mounts, clamping mounts, pillow
   blocks, Yellow Jacket motors (5202/5203/5204), servos & ServoBlocks, REX / D shafts, hubs, collars, bearings,
@@ -42,6 +42,7 @@
     bearing while carrying a wheel or gear), parts not attached to the robot, and long cantilevers.
   - **Stability:** support polygon from the real ground contacts and the centre-of-gravity height give the
     tip-over angle and the braking/turning acceleration (in g) that would tip the robot.
+  - Collision detection and the stability check each have an on/off switch in the panel (remembered per browser).
   - Click any finding to select the parts and fly the camera to it. This is a rule-based check, not a stress
     simulation.
 - **FTC overlays:** 18″ sizing cube (turns red when you are too big), live weight in g/lb, center of gravity.
@@ -54,10 +55,15 @@
   show what differs ("19.2:1 · 312 RPM", "5 Hole · 144 mm"), and a hover card with a rendered thumbnail, SKU,
   price and weight. Yellow Jacket motors are coloured from their real sub-parts (yellow sleeve, black encoder
   cap, dark gearbox, steel shaft).
+- **Projects:** keep several robots in one browser (Projects button, top left): new / open / rename / duplicate /
+  delete. Each project autosaves; a project linked to a cloud code also saves online.
+- **REV Control Hub & Expansion Hub** (Electronics) from REV's own STEP files. Their 4 M3 mounting holes (128 × 88 mm)
+  snap onto the goBILDA 8 mm grid. Masses are estimates (REV does not publish them).
 - **Cloud files (Firebase):** the cloud button saves the build online under a **6-digit access code**. Anyone with
   the code (or the `?cad=123456` link) can open and edit it. Every change auto-saves to Firestore and streams live to
   everyone who has the file open; the last write wins. Codes are remembered in localStorage, so each one is typed once,
-  and the last open file reopens on load. See [Cloud setup](#cloud-setup-firebase).
+  and the last open file reopens on load. Custom parts a robot uses are uploaded with it (content-addressed, up to
+  6 MB each), so teammates who open the code get them too. See [Cloud setup](#cloud-setup-firebase).
 - **Autosave** to IndexedDB + localStorage on every change and on reload/close, with a "Saved" indicator; if a
   big build is cleared, the empty scene offers to restore it.
 - **BOM** with CSV download, **share links** (`#build=…`, compressed in the URL), undo/redo, grouping,
@@ -82,7 +88,8 @@
 5. Push. The Cloud button switches from "not connected" to working.
 
 Each file is one document `cad/{code}` holding the lz-string-compressed build (under 1 MB, which is about 10,000
-parts). Custom parts stay in each browser. For local testing without Firebase, add `?cloudmock` to the URL: it uses
+parts). Custom parts used by a file live in `customParts/{sha256}` with the mesh split into base64 chunk documents
+(`customParts/{id}/chunks/{n}`), written once in a single batch. For local testing without Firebase, add `?cloudmock` to the URL: it uses
 a localStorage backend that syncs between tabs.
 
 ## Parts pipeline (GitHub + jsDelivr, zero backend)

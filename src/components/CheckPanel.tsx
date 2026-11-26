@@ -32,6 +32,24 @@ function Chip({ tone, label, value, testid }: { tone: 'red' | 'amber' | 'green' 
   );
 }
 
+function Toggle({ on, label, testid, onChange }: { on: boolean; label: string; testid: string; onChange: (v: boolean) => void }) {
+  return (
+    <label className="flex cursor-pointer items-center gap-2 text-[12px]">
+      <button
+        type="button"
+        role="switch"
+        aria-checked={on}
+        data-testid={testid}
+        onClick={() => onChange(!on)}
+        className={`relative h-[18px] w-8 shrink-0 rounded-full transition-colors ${on ? 'bg-accent' : 'bg-line'}`}
+      >
+        <span className={`absolute top-[2px] h-[14px] w-[14px] rounded-full bg-white shadow transition-all ${on ? 'left-[16px]' : 'left-[2px]'}`} />
+      </button>
+      {label}
+    </label>
+  );
+}
+
 function IssueRow({ issue, i }: { issue: Issue; i: number }) {
   return (
     <button
@@ -63,6 +81,8 @@ export function CheckPanel() {
   const rep = cs.report;
   const stab = rep?.stability;
   const issues = useMemo(() => rep?.issues.filter((i) => i.kind !== 'stability') ?? [], [rep]);
+  const colOn = cs.live;
+  const stabOn = cs.stability;
   if (!cs.open) return null;
   const nCol = cs.collisions.length;
   return (
@@ -81,12 +101,16 @@ export function CheckPanel() {
           <X size={14} />
         </Btn>
       </div>
+      <div className="flex items-center gap-4 border-b border-line px-3 py-2" data-testid="check-toggles">
+        <Toggle testid="live-collisions" on={colOn} label="Collision detection" onChange={(v) => cs.set({ live: v })} />
+        <Toggle testid="toggle-stability" on={stabOn} label="Stability" onChange={(v) => cs.set({ stability: v })} />
+      </div>
       <div className="overflow-y-auto px-3 py-2 text-[12.5px]">
         {!count && <div className="py-6 text-center text-muted">Place some parts, then check the robot here.</div>}
         {!!count && (
           <>
             <div className="mb-2 grid grid-cols-3 gap-1.5">
-              <Chip testid="chip-collisions" tone={nCol ? 'red' : 'green'} value={String(nCol)} label={nCol === 1 ? 'collision' : 'collisions'} />
+              <Chip testid="chip-collisions" tone={!colOn ? 'muted' : nCol ? 'red' : 'green'} value={colOn ? String(nCol) : 'off'} label={nCol === 1 ? 'collision' : 'collisions'} />
               <Chip
                 testid="chip-joints"
                 tone={!rep ? 'muted' : rep.score.loose ? 'red' : rep.score.weak ? 'amber' : 'green'}
@@ -95,16 +119,20 @@ export function CheckPanel() {
               />
               <Chip
                 testid="chip-stability"
-                tone={!stab ? 'muted' : !stab.ok || stab.tipAngleDeg < 12 ? 'red' : stab.tipAngleDeg < 25 ? 'amber' : 'green'}
-                value={!stab ? '…' : stab.ok ? `${stab.tipAngleDeg.toFixed(0)}°` : 'falls'}
+                tone={!stabOn || !stab ? 'muted' : !stab.ok || stab.tipAngleDeg < 12 ? 'red' : stab.tipAngleDeg < 25 ? 'amber' : 'green'}
+                value={!stabOn ? 'off' : !stab ? '…' : stab.ok ? `${stab.tipAngleDeg.toFixed(0)}°` : 'falls'}
                 label="tip angle"
               />
             </div>
 
             <h3 className="mb-1 mt-2 text-[11px] font-semibold uppercase tracking-wider text-muted">Collisions</h3>
-            {nCol === 0 ? (
+            {!colOn ? (
+              <div className="px-2 py-1 text-muted" data-testid="collisions-off">
+                Collision detection is off — turn it on above to check for parts passing through each other.
+              </div>
+            ) : nCol === 0 ? (
               <div className="flex items-center gap-2 px-2 py-1 text-muted">
-                {ICON.ok} No parts pass through each other{cs.live ? '' : ' (at the last check)'}.
+                {ICON.ok} No parts pass through each other.
               </div>
             ) : (
               cs.collisions.slice(0, 60).map((c) => (
@@ -125,13 +153,13 @@ export function CheckPanel() {
                 </button>
               ))
             )}
-            <label className="mt-1 flex items-center gap-2 px-2 text-[11.5px] text-muted">
-              <input type="checkbox" data-testid="live-collisions" checked={cs.live} onChange={(e) => cs.set({ live: e.target.checked })} />
-              Check collisions live while building
-            </label>
 
             <h3 className="mb-1 mt-3 text-[11px] font-semibold uppercase tracking-wider text-muted">Stability</h3>
-            {stab ? (
+            {!stabOn ? (
+              <div className="px-2 py-1 text-muted" data-testid="stability-off">
+                Stability check is off.
+              </div>
+            ) : stab ? (
               <div className="px-2" data-testid="stability">
                 {stab.ok ? (
                   <p className="leading-snug">

@@ -1,0 +1,21 @@
+{
+ "removeSnapIds": [
+  "h8a",
+  "h8b",
+  "h13a",
+  "h13b",
+  "h270a",
+  "h270b"
+ ],
+ "tappedFix": {
+  "h268a": false,
+  "h268b": false,
+  "h269a": false,
+  "h269b": false,
+  "h271a": false,
+  "h271b": false,
+  "h272a": false,
+  "h272b": false
+ },
+ "notes": "REV hub: only the 4 corner M3 clearance mounting holes (128 x 88 mm, REV-31-1153-DR) on the base flange, both faces; typed m4_hole so they mate with the goBILDA 8 mm grid. Internal standoffs / lid features removed."
+}
