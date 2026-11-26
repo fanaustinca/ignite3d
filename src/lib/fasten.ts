@@ -46,17 +46,91 @@ export interface FastenOptions {
   lengths?: number[];
   /** Height of the locknut (mm). */
   nutHeight?: number;
+  /** Screws already in the build (under-head point, shank direction, length) — new screws must not hit them. */
+  screws?: ScrewSeg[];
+}
+export interface ScrewSeg {
+  o: Vector3;
+  d: Vector3;
+  len: number;
 }
 
-export function chooseScrew(grip: number, threadedEnd: boolean, tappedDepth: number, opts: FastenOptions = {}): { length: number; warning?: string } | null {
+const SCREW_R = 2.0;
+/** Closest approach of two lines: params along each (from their origins) and the distance. */
+function closest(o1: Vector3, d1: Vector3, o2: Vector3, d2: Vector3) {
+  const w = o1.clone().sub(o2);
+  const b = d1.dot(d2), d = d1.dot(w), e = d2.dot(w);
+  const den = 1 - b * b;
+  if (den < 1e-9) return null;
+  const t1 = (b * e - d) / den, t2 = (e - b * d) / den;
+  const p1 = o1.clone().add(d1.clone().multiplyScalar(t1)), p2 = o2.clone().add(d2.clone().multiplyScalar(t2));
+  return { t1, t2, dist: p1.distanceTo(p2) };
+}
+
+/**
+ * How deep (mm past the threaded layer's entry face) a screw may reach before it runs into a crossing hole
+ * of the same part (quad block corners: three tapped holes meet at one point), a screw that is already there,
+ * or the space a screw from the far side of a through-tapped hole will need.
+ */
+export function engagementLimit(entry: Vector3, dir: Vector3, tapped: { instanceId: string; depth: number }, all: WorldSnap[], screws: ScrewSeg[] = [], farCovered = false) {
+  let lim = Infinity;
+  const reason: string[] = [];
+  const seen = new Set<string>();
+  for (const s of all) {
+    if (s.instanceId !== tapped.instanceId || !FASTENABLE.has(s.snap.type) || s.snap.male) continue;
+    if (Math.abs(s.normal.dot(dir)) > 0.1) continue; // only holes that cross ours
+    const key = `${s.snap.holeId ?? s.snap.id}`;
+    if (seen.has(key)) continue;
+    const c = closest(entry, dir, s.pos, s.normal.clone().negate());
+    if (!c || c.dist > 0.6 || c.t1 <= 0.2) continue;
+    // the crossing hole must actually extend to the crossing point (blind side holes stop at their depth)
+    const reach = s.snap.depth ?? 0;
+    if (c.t2 < -0.5 || (reach > 0 && c.t2 > reach + SCREW_R)) continue;
+    seen.add(key);
+    if (c.t1 - SCREW_R < lim) {
+      lim = c.t1 - SCREW_R;
+      reason.push('crossing hole');
+    }
+  }
+  for (const sc of screws) {
+    const par = Math.abs(sc.d.dot(dir));
+    if (par > 0.999) {
+      // coaxial, coming from the other side: stop short of its tip
+      if (sc.d.dot(dir) > -0.999) continue;
+      const off = sc.o.clone().sub(entry);
+      const radial = off.clone().sub(dir.clone().multiplyScalar(off.dot(dir))).length();
+      if (radial > 2 * SCREW_R) continue;
+      const tip = off.dot(dir) - sc.len; // along our axis
+      if (tip > 0 && tip - 0.3 < lim) {
+        lim = tip - 0.3;
+        reason.push('screw from the other side');
+      }
+      continue;
+    }
+    const c = closest(entry, dir, sc.o, sc.d);
+    if (!c || c.dist > 2 * SCREW_R || c.t2 < -SCREW_R || c.t2 > sc.len + SCREW_R || c.t1 <= 0) continue;
+    if (c.t1 - SCREW_R < lim) {
+      lim = c.t1 - SCREW_R;
+      reason.push('crossing screw');
+    }
+  }
+  if (farCovered && tapped.depth > 0 && tapped.depth / 2 - 0.25 < lim) {
+    lim = tapped.depth / 2 - 0.25;
+    reason.push('room for the screw from the other side');
+  }
+  return { limit: lim, reason: reason[reason.length - 1] };
+}
+
+export function chooseScrew(grip: number, threadedEnd: boolean, tappedDepth: number, opts: FastenOptions = {}, maxEngage = Infinity): { length: number; warning?: string } | null {
   const lengths = [...(opts.lengths ?? SCREW_LENGTHS)].sort((a, b) => a - b);
   const nutH = opts.nutHeight ?? NUT_HEIGHT;
   if (threadedEnd) {
-    const cap = threadCapacity(tappedDepth);
-    const fit = lengths.filter((L) => L >= grip + Math.min(4, cap) && L <= grip + cap);
+    const cap = Math.min(threadCapacity(tappedDepth), maxEngage);
+    const e = 0.05; // floating point: an exact fit must count
+    const fit = lengths.filter((L) => L >= grip + Math.min(4, cap) - e && L <= grip + cap + e);
     if (fit.length) return { length: fit[0] };
-    const longer = lengths.find((L) => L >= grip + 2 && L <= grip + cap);
-    if (longer) return { length: longer, warning: 'Short thread engagement' };
+    const longer = [...lengths].reverse().find((L) => L >= grip + 2 - e && L <= grip + cap + e);
+    if (longer) return { length: longer, warning: maxEngage < threadCapacity(tappedDepth) ? 'Short screw so it clears the crossing hole' : 'Short thread engagement' };
     return null;
   }
   const L = lengths.find((x) => x >= grip + nutH);
@@ -116,6 +190,7 @@ export function planFasten(clicked: WorldSnap, all: WorldSnap[], opts: FastenOpt
   const seen = new Set<string>();
   let threadedEnd = false;
   let tappedDepth = 0;
+  let tappedLayer: { instanceId: string; start: number; depth: number } | null = null;
   for (let guard = 0; guard < 20; guard++) {
     const e = entries
       .filter((s) => !seen.has(s.instanceId) && Math.abs(tOf(s) - cur) < FACE_TOL)
@@ -127,6 +202,7 @@ export function planFasten(clicked: WorldSnap, all: WorldSnap[], opts: FastenOpt
     if (e.snap.tapped) {
       threadedEnd = true;
       tappedDepth = depth;
+      tappedLayer = { instanceId: e.instanceId, start: cur, depth };
       break;
     }
     cur += depth;
@@ -138,8 +214,17 @@ export function planFasten(clicked: WorldSnap, all: WorldSnap[], opts: FastenOpt
   if (partsInJoint.size < 2) return { ok: false, reason: 'No aligned hole on another part — line two parts up first (Snap ON).' };
 
   const grip = clearance.reduce((s, l) => s + l.depth, 0);
-  const pick = chooseScrew(grip, threadedEnd, tappedDepth, opts);
-  if (!pick) return { ok: false, reason: `Stack is ${grip.toFixed(1)} mm thick — too thick for the longest M4 screw.` };
+  let maxEngage = Infinity;
+  if (tappedLayer) {
+    const entryPt = origin.clone().add(dir.clone().multiplyScalar(tappedLayer.start));
+    const tl = tappedLayer;
+    // another part pressed on the far face of a through-tapped hole gets its own screw from that side
+    const farCovered = tl.depth > 0 && entries.some((s) => s.instanceId !== tl.instanceId && Math.abs(tOf(s) - (tl.start + tl.depth)) < FACE_TOL);
+    maxEngage = engagementLimit(entryPt, dir, tl, all, opts.screws, farCovered).limit;
+    if (maxEngage < 2) return { ok: false, reason: 'A crossing hole or screw blocks this threaded hole — fasten from another face.' };
+  }
+  const pick = chooseScrew(grip, threadedEnd, tappedDepth, opts, maxEngage);
+  if (!pick) return { ok: false, reason: maxEngage < Infinity ? 'No M4 screw length fits without hitting the crossing screw.' : `Stack is ${grip.toFixed(1)} mm thick — too thick for the longest M4 screw.` };
 
   const head = origin.clone().add(dir.clone().multiplyScalar(start));
   const screwQ = new Quaternion().setFromUnitVectors(new Vector3(0, -1, 0), dir);

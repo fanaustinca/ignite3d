@@ -8,7 +8,8 @@
 import { BufferAttribute, BufferGeometry, DoubleSide, Ray, Vector3, Box3 } from 'three';
 import { MeshBVH } from 'three-mesh-bvh';
 import type { CatalogPart, PlacedInstance, SnapType } from '../../types/cad';
-import { instanceMatrix, worldSnaps, distToLine, type WorldSnap } from '../snap';
+import { instanceMatrix, worldSnaps, distToLine, q4, type WorldSnap } from '../snap';
+import { plausibleMesh, spinAxisLocal, spinCentreLocal, toothInfo } from '../drive/partInfo';
 
 export interface MeshSource {
   /** Triangle soup in the part frame, xyz per vertex, 3 vertices per triangle. */
@@ -207,6 +208,10 @@ export function checkPair(A: PlacedInstance, pa: CatalogPart, ca: Collider, B: P
   const ba = worldBox(A, ca), bb = worldBox(B, cb);
   const overlap = ba.clone().intersect(bb);
   let res: Collision | null = null;
+  if (gearsInMesh(A, pa, B, pb)) {
+    pairCache.set(key, null);
+    return null;
+  }
   if (!overlap.isEmpty() && Math.min(...overlap.getSize(new Vector3()).toArray()) > tol) {
     overlap.expandByScalar(0.01);
     const axes = sharedAxes(worldSnaps(A, pa), worldSnaps(B, pb));
@@ -222,6 +227,22 @@ export function checkPair(A: PlacedInstance, pa: CatalogPart, ca: Collider, B: P
   if (pairCache.size > 20000) pairCache.clear();
   pairCache.set(key, res);
   return res;
+}
+
+/** Meshing gears overlap at the teeth in CAD (tooth phase is arbitrary): never report that as a collision. */
+export function gearsInMesh(A: PlacedInstance, pa: CatalogPart, B: PlacedInstance, pb: CatalogPart) {
+  const ta = toothInfo(pa), tb = toothInfo(pb);
+  if (!ta || !tb) return false;
+  const axA = spinAxisLocal(pa), axB = spinAxisLocal(pb);
+  const qa = q4(A.quaternion), qb = q4(B.quaternion);
+  const ca = spinCentreLocal(pa, axA).applyMatrix4(instanceMatrix(A));
+  const cb = spinCentreLocal(pb, axB).applyMatrix4(instanceMatrix(B));
+  const da = axA.clone().applyQuaternion(qa), db = axB.clone().applyQuaternion(qb);
+  const parallel = Math.abs(da.dot(db)) > 0.995;
+  // centre distance measured across the shared axis direction
+  const d = cb.clone().sub(ca);
+  const dist = parallel ? d.sub(da.clone().multiplyScalar(d.dot(da))).length() : d.length();
+  return plausibleMesh(ta, tb, dist, parallel);
 }
 
 export interface CollisionRun {

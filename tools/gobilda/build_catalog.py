@@ -59,12 +59,18 @@ def mesh_bounds(glb_path):
     return np.array(acc['min']), np.array(acc['max'])
 
 def mesh_points(glb_path):
+    """All vertex positions of a GLB (every primitive: recoloured parts have one primitive per colour)."""
     import struct
     b = open(glb_path, 'rb').read()
     n = struct.unpack('<I', b[12:16])[0]
-    js = json.loads(b[20:20 + n]); acc = js['accessors'][0]; bv = js['bufferViews'][acc['bufferView']]
-    off = 20 + n + 8 + bv.get('byteOffset', 0) + acc.get('byteOffset', 0)
-    return np.frombuffer(b[off: off + acc['count'] * 12], dtype='<f4').reshape(-1, 3).astype(float)
+    js = json.loads(b[20:20 + n])
+    out = []
+    for m in js['meshes']:
+        for pr in m['primitives']:
+            acc = js['accessors'][pr['attributes']['POSITION']]; bv = js['bufferViews'][acc['bufferView']]
+            off = 20 + n + 8 + bv.get('byteOffset', 0) + acc.get('byteOffset', 0)
+            out.append(np.frombuffer(b[off: off + acc['count'] * 12], dtype='<f4').reshape(-1, 3).astype(float))
+    return np.concatenate(out)
 
 BORE_R = {'m4_hole': 2.0, 'rex_8mm': 4.0, 'd_6mm': 3.0, 'bearing_14mm': 7.0, 'hub_pattern_16mm': 2.0}
 def face_fix(P, s, win=0.3):
@@ -124,8 +130,9 @@ def main():
         app_snaps = [to_app_snap(s) for s in snaps if s.get('type') in KNOWN] + [to_app_snap({**m, 'male': True}) for m in males if m.get('type') in KNOWN]
         lo, hi = mesh_bounds(os.path.join(D, 'out', f'{sku}.glb'))  # exact (OCC Bnd_Box adds tolerance)
         name = clean_name(info['title'])
-        pack = pack_count(info['title'])
+        pack = info.get('pack') or pack_count(info['title'])
         mass = weights.get(sku)
+        if mass is not None and info.get('pack'): mass = mass / info['pack']  # weights.json holds the whole set
         if mass is None: mass = meta['volume_mm3'] * density(sku, info['title'])
         price = info.get('price')
         price = round(price / pack, 2) if price else est_price(sku)

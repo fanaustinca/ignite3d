@@ -184,3 +184,22 @@ describe.skipIf(!real)('kit coverage (goBILDA kit bills of materials)', () => {
     for (const s of pat) expect(s.position[1]).toBeCloseTo(20, 3); // 20 mm hub offset from the shoulder
   });
 });
+
+describe.skipIf(!real)('Smart Fasten: crossing holes (quad block corners)', () => {
+  it('side screws stop before the crossing vertical / side holes, so screws never hit each other', async () => {
+    const { engagementLimit, chooseScrew } = await import('./fasten');
+    const Q = inst('Q', '1201-0043-0002');
+    const snaps = worldSnaps(Q, cat[Q.sku]);
+    const side = snaps.find((s) => s.normal.x > 0.99 && Math.abs(s.pos.x - 21.5) < 0.01 && s.pos.z > 0)!;
+    expect(side).toBeTruthy();
+    const dir = side.normal.clone().negate();
+    const lim = engagementLimit(side.pos, dir, { instanceId: 'Q', depth: side.snap.depth ?? 0 }, snaps);
+    expect(lim.limit).toBeCloseTo(21.5 - 16 - 2, 1); // the vertical + Z holes cross 5.5 mm in
+    const pick = chooseScrew(2.5, true, side.snap.depth ?? 0, {}, lim.limit)!; // a 2.5 mm channel web on that face
+    expect(pick.length - 2.5).toBeLessThanOrEqual(lim.limit + 1e-6);
+    // with a screw already sitting in the crossing Z hole, the new one must also stop short of it
+    const zFace = snaps.find((s) => s.normal.z > 0.99 && Math.abs(s.pos.z - 21.5) < 0.01 && s.pos.x > 0)!;
+    const lim2 = engagementLimit(side.pos, dir, { instanceId: 'Q', depth: 8.5 }, [], [{ o: zFace.pos.clone().add(zFace.normal.clone().multiplyScalar(2.5)), d: zFace.normal.clone().negate(), len: 10 }]);
+    expect(lim2.limit).toBeLessThan(4);
+  });
+});

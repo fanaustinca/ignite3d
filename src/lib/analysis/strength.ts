@@ -147,7 +147,7 @@ export function analyzeStructure(instances: PlacedInstance[], catalog: Record<st
           for (let dz = -1; dz <= 1; dz++)
             for (const t of grid.get(`${x + dx},${y + dy},${z + dz}`) ?? []) {
               if (t.instanceId <= s.instanceId) continue; // each pair once
-              if (t.pos.distanceTo(s.pos) > 0.3 || t.normal.dot(s.normal) > -0.99) continue;
+              if (t.pos.distanceTo(s.pos) > 0.5 || t.normal.dot(s.normal) > -0.985) continue;
               const key = `${s.instanceId}|${t.instanceId}`;
               const l = contacts.get(key);
               if (l) l.push({ s, t });
@@ -328,9 +328,25 @@ export function analyzeStructure(instances: PlacedInstance[], catalog: Record<st
     if (l) l.push(b);
     else groups.set(r, [b]);
   }
+  const mainBoxes = bodies.filter((b) => rigid.find(b.inst.instanceId) === mainRigid).map((b) => b.box.clone().expandByScalar(2));
   for (const g of groups.values()) {
     const touching = loose.find(g[0].inst.instanceId) === mainLoose;
     const names = [...new Set(g.map((b) => b.part.name))];
+    // parts with no screw holes / bores (batteries, custom 3D-printed parts, wires...) can't be checked by holes:
+    // if they sit on or inside the robot, assume they are zip-tied / taped / glued on
+    const noHoles = g.every((b) => !b.part.snapPoints.some((sp) => !sp.male && (BOLT_TYPES.has(sp.type) || BORE_TYPES.has(sp.type) || sp.type === 'bearing_14mm')));
+    const onRobot = g.some((b) => mainBoxes.some((m) => m.intersectsBox(b.box)));
+    if (noHoles && onRobot) {
+      issues.push({
+        level: 'info',
+        kind: 'floating',
+        title: 'Mounted without holes',
+        detail: `${names.slice(0, 3).join(', ')}${names.length > 3 ? '…' : ''} ha${g.length > 1 ? 've' : 's'} no screw holes to check — make sure it is zip-tied, taped or clamped.`,
+        ids: g.map((b) => b.inst.instanceId),
+        point: fmt(g[0].box.getCenter(new Vector3())),
+      });
+      continue;
+    }
     issues.push({
       level: touching ? 'warn' : 'error',
       kind: 'floating',
@@ -367,8 +383,13 @@ export function analyzeStructure(instances: PlacedInstance[], catalog: Record<st
 
   const stability = meshOf ? analyzeStability(visible, catalog, meshOf) : null;
   if (stability) {
+    const hasWheels = visible.some((i) => catalog[i.sku].category === 'Wheels');
     if (!stability.ok)
-      issues.push({ level: 'error', kind: 'stability', title: 'Robot falls over', detail: 'The centre of gravity is outside the wheels / ground contacts — it cannot stand on its own.', ids: [], point: stability.cog ?? undefined });
+      issues.push(
+        hasWheels
+          ? { level: 'error', kind: 'stability', title: 'Robot falls over', detail: 'The centre of gravity is outside the wheels / ground contacts — it cannot stand on its own.', ids: [], point: stability.cog ?? undefined }
+          : { level: 'info', kind: 'stability', title: 'No wheels yet', detail: 'Stability is measured on the wheels; this build would not stand on its own as placed.', ids: [], point: stability.cog ?? undefined },
+      );
     else if (stability.tipAngleDeg < 12)
       issues.push({ level: 'error', kind: 'stability', title: 'Tips over very easily', detail: `Tips toward ${stability.tipToward} at ${stability.tipAngleDeg.toFixed(0)}° (or ${stability.tipAccelG.toFixed(2)} g braking). Lower heavy parts or widen the wheelbase.`, ids: [], point: stability.cog ?? undefined });
     else if (stability.tipAngleDeg < 25)
@@ -434,9 +455,19 @@ export function analyzeStability(instances: PlacedInstance[], catalog: Record<st
     for (const y of ys) if (y < ground) ground = y;
     low.push({ i, ys, xz });
   }
-  const pts: [number, number][] = [];
-  for (const l of low) for (let k = 0; k < l.ys.length; k++) if (l.ys[k] < ground + 1.0) pts.push(l.xz[k]);
-  const hull = hull2(pts);
+  // ground contacts: anything within 1 mm of the lowest point; wheels within 3 mm (mecanum rollers / tread
+  // phase make identical wheels differ by a millimetre or two). Widen once if that leaves no real footprint.
+  const contacts = (tol: number) => {
+    const pts: [number, number][] = [];
+    for (const l of low) {
+      const wheel = catalog[l.i.sku].category === 'Wheels';
+      for (let k = 0; k < l.ys.length; k++) if (l.ys[k] < ground + (wheel ? Math.max(3, tol) : tol)) pts.push(l.xz[k]);
+    }
+    return hull2(pts);
+  };
+  const area = (h: [number, number][]) => Math.abs(h.reduce((s, p, k) => s + p[0] * h[(k + 1) % h.length][1] - h[(k + 1) % h.length][0] * p[1], 0)) / 2;
+  let hull = contacts(1.0);
+  if (hull.length < 3 || area(hull) < 400) hull = contacts(4.0);
   const cog: Vec3 = [m.cog.x, m.cog.y, m.cog.z];
   const h = Math.max(1, m.cog.y - ground);
   const base = { hull, groundY: ground, cog, cogHeightMm: h };

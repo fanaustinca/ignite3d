@@ -467,7 +467,7 @@ await test('U-channel T joint on a quad block: a dropped screw auto-sizes and si
   const saved = await st(() => window.__ignite.store.getState().instances);
   await st(async () => {
     const I = window.__ignite;
-    await I.ensureSnaps(['1120-0005-0144', '1201-0043-0002', '2800-0004-0016', '2800-0004-0007', '2800-0004-0008']);
+    await I.ensureSnaps(['1120-0005-0144', '1201-0043-0002', '2800-0004-0016', '2800-0004-0006', '2800-0004-0007', '2800-0004-0008']);
     const s = I.store.getState();
     s.setInstances([
       { instanceId: 'A', sku: '1120-0005-0144', position: [0, 0, 0], quaternion: [0, 0, 0, 1], hidden: false, ghosted: false },
@@ -488,7 +488,8 @@ await test('U-channel T joint on a quad block: a dropped screw auto-sizes and si
   assert(g.fasten, 'screw ghost resolved by Smart Fasten: ' + JSON.stringify(g));
   assert(Math.hypot(g.position[0] + 24, g.position[1] + 32, g.position[2] + 16) < 1e-3, 'head on the outer flange face ' + g.position);
   const sku = await st(() => window.__ignite.store.getState().placingSku);
-  assert(/^2800-0004-000[78]$/.test(sku), 'auto length M4x7/8, got ' + sku);
+  // the side hole crosses the block's vertical + side holes 5.5 mm in: the screw stops 2 mm short of them (M4x6)
+  assert(sku === '2800-0004-0006', 'auto length M4x6 (clears the crossing holes), got ' + sku);
   await shot('19-screw-ghost');
   await page.mouse.click(p.x, p.y);
   await sleep(300);

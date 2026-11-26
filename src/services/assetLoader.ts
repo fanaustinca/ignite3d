@@ -240,7 +240,7 @@ export function forgetVisual(sku: string) {
  * Never throws; procedural stays in place on any failure.
  */
 /** Bump when shipped meshes change (v2: coloured motors) so browsers drop their cached copies. */
-const MESH_REV = 2;
+const MESH_REV = 3;
 const meshCacheKey = (part: CatalogPart) => (part.isCustom ? `part-mesh-${part.sku}` : `part-mesh-v${MESH_REV}-${part.sku}`);
 
 /** Remove cached meshes of shipped parts from older mesh revisions (custom parts are never touched). */

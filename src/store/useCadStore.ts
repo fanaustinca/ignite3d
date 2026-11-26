@@ -6,7 +6,7 @@ import { BUILTIN_CATALOG, LOCKNUT_SKU, shcsSku } from '../data/catalog';
 import { type AssetSource } from '../services/assetLoader';
 import { type AssetConfig, loadAssetConfig } from '../config/assets';
 import { q4, rotateAbout, toVec3, v3, worldSnaps, type WorldSnap } from '../lib/snap';
-import { axisKey, planFasten, spreadPick, type FastenOptions, type FastenPlan } from '../lib/fasten';
+import { axisKey, planFasten, spreadPick, type FastenOptions, type FastenPlan, type ScrewSeg } from '../lib/fasten';
 
 export type Theme = 'dark' | 'light';
 export type Tool = 'select' | 'fasten';
@@ -343,7 +343,7 @@ export function planFastenAt(
   const clicked = worldSnaps(inst, part).find((s) => s.snap.id === snapId);
   if (!clicked) return { ok: false, reason: 'Hole not found.' };
   const all = allWorldSnaps(instances.filter((i) => !isFastener(i.sku)), catalog, clicked.pos, 80);
-  const plan = planFasten(clicked, all, fastenOptions(catalog));
+  const plan = planFasten(clicked, all, { ...fastenOptions(catalog), screws: screwSegments(instances) });
   if (!plan.ok) return plan;
   if (!catalog[shcsSku(plan.screwLength)]) return { ok: false, reason: `M4×${plan.screwLength} screw is not in the catalogue.` };
   if (existingScrewAxes(instances, catalog).has(axisKey(plan.head, plan.dir))) return { ok: false, reason: 'That hole already has a screw.' };
@@ -370,6 +370,17 @@ const maxExtent = (p: CatalogPart) => {
   const d = p.dimensions ?? [100, 100, 100];
   return Math.hypot(d[0], d[1], d[2]);
 };
+
+/** Shank segments of the socket-head screws already placed (for crossing-hole length limits). */
+export function screwSegments(instances: PlacedInstance[]): ScrewSeg[] {
+  const out: ScrewSeg[] = [];
+  for (const i of instances) {
+    const m = /^280[02]-\d{4}-(\d{4})$/.exec(i.sku);
+    if (!m || i.hidden) continue;
+    out.push({ o: v3(i.position), d: new Vector3(0, -1, 0).applyQuaternion(q4(i.quaternion)).normalize(), len: Number(m[1]) });
+  }
+  return out;
+}
 
 function existingScrewAxes(instances: PlacedInstance[], _catalog: Record<string, CatalogPart>) {
   const keys = new Set<string>();
@@ -433,7 +444,7 @@ export function planJointFasteners(instances: PlacedInstance[], catalog: Record<
   }
   const focusIds = new Set(focusList.map((i) => i.instanceId));
   const existing = existingScrewAxes(instances, catalog);
-  const fopts = fastenOptions(catalog);
+  const fopts = { ...fastenOptions(catalog), screws: screwSegments(instances) };
   const byJoint = new Map<string, FastenPlan[]>();
   const existingInJoint = new Map<string, Vector3[]>();
   const seenAxes = new Set<string>();
