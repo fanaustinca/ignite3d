@@ -894,6 +894,38 @@ await test('REV hubs in the catalog; collision + stability checks can be turned 
   await page.keyboard.press('Escape');
 });
 
+await test('Live Test (beta): finds the drivetrain, drives with the keyboard mapping, adds game elements, Esc returns to CAD', async () => {
+  await st(() => window.__ignite.loadExample());
+  await page.click('[data-testid="open-test"]');
+  await page.waitForFunction(() => !!window.__igniteSim, { timeout: 90000 });
+  const kind = await page.$eval('[data-testid="sim-drive-kind"]', (e) => e.textContent);
+  assert(/Tank/.test(kind) && /4 motors/.test(kind), kind);
+  // keyboard: holding W asks for full forward on every drive motor
+  await page.keyboard.down('w');
+  await sleep(150);
+  const cmd = await st(() => window.__igniteSim.read());
+  await page.keyboard.up('w');
+  assert(cmd.fwd === 1 && cmd.turn === 0, JSON.stringify(cmd));
+  // physics (stepped directly: SwiftShader renders slower than real time)
+  const moved = await st(() => {
+    const { sim } = window.__igniteSim;
+    sim.resetRobot();
+    const p0 = sim.chassis.translation();
+    for (let i = 0; i < 120; i++) sim.step({ fwd: 1, strafe: 0, turn: 0, act: {} }, 1 / 120);
+    const p = sim.chassis.translation();
+    return Math.hypot(p.x - p0.x, p.z - p0.z);
+  });
+  assert(moved > 0.5, 'drove ' + moved + ' m in 1 s');
+  const n0 = await st(() => window.__igniteSim.sim.elements.length);
+  await page.click('[data-testid="sim-add-pollen"]');
+  assert((await st(() => window.__igniteSim.sim.elements.length)) === n0 + 5, 'five POLLEN added');
+  await sleep(500);
+  await shot('25-live-test');
+  await page.keyboard.press('Escape');
+  await page.waitForFunction(() => !document.querySelector('[data-testid="sim"]') && !window.__igniteSim, { timeout: 8000 });
+  assert((await st(() => window.__ignite.store.getState().instances.length)) > 50, 'build untouched');
+});
+
 await test('no uncaught errors in the page', async () => {
   assert(pageErrors.length === 0, pageErrors.slice(0, 5).join('\n'));
 });

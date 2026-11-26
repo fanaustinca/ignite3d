@@ -1,7 +1,7 @@
 {
   "name": "ignite3d",
   "private": true,
-  "version": "1.6.1",
+  "version": "1.7.0",
   "type": "module",
   "scripts": {
     "dev": "vite",
@@ -14,6 +14,7 @@
     "catalog": "vite-node scripts/build-catalog.ts"
   },
   "dependencies": {
+    "@dimforge/rapier3d-compat": "0.14.0",
     "@react-three/drei": "^9.117.3",
     "@react-three/fiber": "^8.17.10",
     "fflate": "^0.8.2",

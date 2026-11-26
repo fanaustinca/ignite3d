@@ -10,7 +10,7 @@ import { axisKey, planFasten, spreadPick, type FastenOptions, type FastenPlan, t
 
 export type Theme = 'dark' | 'light';
 export type Tool = 'select' | 'fasten';
-export type Modal = null | 'help' | 'settings' | 'bom' | 'export' | 'upload' | 'share' | 'cloud' | 'projects';
+export type Modal = null | 'help' | 'settings' | 'bom' | 'export' | 'upload' | 'share' | 'cloud' | 'projects' | 'test';
 
 export interface Toast {
   id: number;

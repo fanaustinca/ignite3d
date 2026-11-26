@@ -9,6 +9,7 @@ import {
   FolderOpen,
   FlipHorizontal2,
   Github,
+  Gamepad2,
   Magnet,
   Maximize,
   MessageSquare,
@@ -134,12 +135,19 @@ export function Toolbar() {
       <Tip label="Robot Check — collisions, joints & screws, tip-over stability" keys="K">
         <Btn data-testid="open-check" active={check.open} onClick={() => check.set({ open: !check.open, focus: null })} className="relative">
           <ShieldCheck size={16} />
-          <span className="hidden lg:inline">Check</span>
+          <span className="hidden min-[1500px]:inline">Check</span>
           {nCol > 0 && (
             <span data-testid="collision-badge" className="absolute -right-1 -top-1 min-w-[16px] rounded-full bg-red-600 px-1 text-center text-[10px] font-bold leading-4 text-white num">
               {nCol}
             </span>
           )}
+        </Btn>
+      </Tip>
+      <Tip label="Live Test (beta) — drive the robot, run intakes / arms, push game elements" keys="L">
+        <Btn data-testid="open-test" onClick={() => useCadStore.getState().set({ modal: 'test' })} className="relative">
+          <Gamepad2 size={16} />
+          <span className="hidden min-[2000px]:inline">Test</span>
+          <span className="absolute -right-1.5 -top-1.5 rounded bg-accent px-1 text-[8.5px] font-bold leading-[13px] text-white">β</span>
         </Btn>
       </Tip>
       <Tip label="Zoom to fit" keys=".">
@@ -174,7 +182,7 @@ export function Toolbar() {
       <Tip label="Help & shortcuts" keys="?">
         <Btn data-testid="open-help" onClick={() => s.set({ modal: 'help' })}>
           <CircleHelp size={16} />
-          <span className="hidden min-[1800px]:inline">Help</span>
+          <span className="hidden min-[1850px]:inline">Help</span>
         </Btn>
       </Tip>
       <Tip label="GitHub parts repo & settings">
@@ -191,19 +199,19 @@ export function Toolbar() {
       <Tip label={cloud.code ? `Cloud file ${cloud.code} — saves online` : 'Cloud files — save online with a 6-digit code'}>
         <Btn data-testid="open-cloud" active={!!cloud.code} onClick={() => s.set({ modal: 'cloud' })}>
           <Cloud size={16} className={cloud.status === 'error' ? 'text-red-500' : cloud.status === 'saving' || cloud.status === 'connecting' ? 'animate-pulse' : ''} />
-          <span className="hidden min-[1700px]:inline num">{cloud.code ?? 'Cloud'}</span>
+          <span className="hidden min-[1760px]:inline num">{cloud.code ?? 'Cloud'}</span>
         </Btn>
       </Tip>
       <Tip label="Share link">
         <Btn data-testid="open-share" onClick={() => s.set({ modal: 'share' })}>
           <Share2 size={16} />
-          <span className="hidden min-[1700px]:inline">Share</span>
+          <span className="hidden min-[1760px]:inline">Share</span>
         </Btn>
       </Tip>
       <Tip label="Bill of materials">
         <Btn data-testid="open-bom" onClick={() => s.set({ modal: 'bom' })}>
           <ClipboardList size={16} />
-          <span className="hidden min-[1700px]:inline">BOM</span>
+          <span className="hidden min-[1760px]:inline">BOM</span>
         </Btn>
       </Tip>
       <Btn data-testid="open-export" tone="accent" className="ml-1 px-3" onClick={() => s.set({ modal: 'export' })}>

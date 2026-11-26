@@ -1078,8 +1078,10 @@ function CameraRig() {
 export function Viewport() {
   const theme = useCadStore((s) => s.theme);
   const dark = theme === 'dark';
+  const paused = useCadStore((s) => s.modal === 'test');
   return (
     <Canvas
+      frameloop={paused ? 'never' : 'always'}
       data-testid="viewport"
       camera={{ position: [420, 340, 560], fov: 40, near: 1, far: 40000 }}
       gl={{ antialias: true, preserveDrawingBuffer: true }}

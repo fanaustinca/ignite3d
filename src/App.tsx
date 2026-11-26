@@ -1,4 +1,4 @@
-import { useEffect } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { Toolbar } from './components/Toolbar';
 import { Sidebar } from './components/Sidebar';
 import { Inspector } from './components/Inspector';
@@ -226,6 +226,9 @@ function useShortcuts() {
         case 'c':
           st.set({ showCoG: !st.showCoG });
           return;
+        case 'l':
+          st.set({ modal: 'test' });
+          return;
         case 'k': {
           const cs = useCheckStore.getState();
           cs.set({ open: !cs.open, focus: null });
@@ -283,6 +286,8 @@ function useShortcuts() {
   },
 };
 
+const TestDrive = lazy(() => import('./sim/TestDrive'));
+
 export default function App() {
   useEffect(() => startRobotCheck(), []);
   useEffect(() => startCloud({ openedShare: OPENED_SHARE }), []);
@@ -311,6 +316,11 @@ export default function App() {
       {modal === 'export' && <ExportModal />}
       {modal === 'settings' && <SettingsModal />}
       {modal === 'upload' && <UploadStudio />}
+      {modal === 'test' && (
+        <Suspense fallback={null}>
+          <TestDrive />
+        </Suspense>
+      )}
     </div>
   );
 }
