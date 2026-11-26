@@ -4,3 +4,6 @@ tests/screenshots
 *.log
 tests/.downloads
 tests/fixtures
+.env
+.env.*
+!.env.example
